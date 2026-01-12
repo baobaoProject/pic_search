@@ -373,7 +373,7 @@ const Setting = (props: any) => {
             dropzoneClass={classes.dropzoneContainer}
             showPreviewsInDropzone={false}
             dropzoneParagraphClass={classes.dropzoneText}
-            // maxFileSize={} bit
+            maxFileSize={10485760} // 10MB in bytes
           />
         )}
       </div>

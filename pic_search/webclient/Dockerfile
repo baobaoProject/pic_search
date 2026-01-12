@@ -4,7 +4,7 @@ WORKDIR /app
 COPY package.json .
 RUN yarn
 COPY . .
-RUN yarn build
+RUN NODE_OPTIONS='--openssl-legacy-provider' yarn build
 
 # => Run container
 FROM nginx:1.17-alpine
@@ -27,8 +27,12 @@ COPY .env .
 # Add bash
 RUN apk add --no-cache bash
 
-# Make our shell script executable
+# Make sure env.sh has execution permissions and convert line endings to Unix format
 RUN chmod +x env.sh
+RUN sed -i 's/\r$//' env.sh
 
 # Start Nginx server
 CMD ["/bin/bash", "-c", "/usr/share/nginx/html/env.sh && nginx -g \"daemon off;\""]
+
+
+# docker build   -t  milvusbootcamp/pic-search-webclient:2.0  .

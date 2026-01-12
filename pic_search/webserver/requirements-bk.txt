@@ -6,5 +6,4 @@ diskcache
 flask
 flask_restful
 gunicorn>=23.0.0
-protobuf
-grpcio<2.0.0
+tensorflow>=2.20.0

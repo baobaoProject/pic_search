@@ -190,10 +190,27 @@ const Setting = (props: any) => {
     });
   };
 
-  const uploadImg = (file: any) => {
-    setImage(file);
-    reader.readAsDataURL(file);
-    _search({ topK, image: file });
+  const uploadImg = (files: any) => {
+    // 确保 files 存在且有内容
+    if (files && files.length > 0) {
+      const file = files[0];
+      setImage(file);
+      // 只有当 file 是 Blob 或 File 类型时才读取
+      // 增加 try-catch 防止预览失败影响上传
+      if (file instanceof Blob) {
+        try {
+          reader.readAsDataURL(file);
+        } catch (e) {
+          console.error("Failed to read file for preview", e);
+        }
+        // 调用搜索，使用当前最新的 topK 和上传的文件
+        // 注意：这里需要确保 search 方法确实被调用
+        // 由于 setState 是异步的，直接用 topK 应该没问题，因为它在闭包中
+        _search({ topK, image: file });
+      } else {
+         console.warn("Uploaded item is not a Blob/File:", file);
+      }
+    }
   };
 
   const onInputChange = (e: any) => {
@@ -346,7 +363,7 @@ const Setting = (props: any) => {
             <img
               ref={benchImage}
               className={classes.benchImage}
-              src={image}
+              // src 由 reader 回调设置，此处留空或设为 null 以避免将 File 对象作为 src
               alt="..."
             />
             <Fab
@@ -369,11 +386,11 @@ const Setting = (props: any) => {
             acceptedFiles={["image/*"]}
             filesLimit={1}
             dropzoneText={`click to upload / drag a image here`}
-            onDrop={uploadImg}
+            onChange={uploadImg}
             dropzoneClass={classes.dropzoneContainer}
             showPreviewsInDropzone={false}
             dropzoneParagraphClass={classes.dropzoneText}
-            // maxFileSize={} bit
+            maxFileSize={10485760} // 10MB in bytes
           />
         )}
       </div>

@@ -1,0 +1,134 @@
+version: '3.5'
+
+services:
+  etcd:
+    container_name: milvus-etcd
+    image: quay.io/coreos/etcd:v3.5.25
+    environment:
+      - ETCD_AUTO_COMPACTION_MODE=revision
+      - ETCD_AUTO_COMPACTION_RETENTION=1000
+      - ETCD_QUOTA_BACKEND_BYTES=4294967296
+      - ETCD_SNAPSHOT_COUNT=50000
+    volumes:
+      - ./data/etcd:/etcd
+    command: etcd -advertise-client-urls=http://etcd:2379 -listen-client-urls http://0.0.0.0:2379 --data-dir /etcd
+    healthcheck:
+      test: ["CMD", "etcdctl", "endpoint", "health"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+
+  minio:
+    container_name: milvus-minio
+    image: minio/minio:RELEASE.2024-12-18T13-15-44Z
+    environment:
+      MINIO_ACCESS_KEY: minioadmin
+      MINIO_SECRET_KEY: minioadmin
+    ports:
+      - "9001:9001"
+      - "9000:9000"
+    volumes:
+      - ./data/minio:/minio_data
+    command: minio server /minio_data --console-address ":9001"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+
+  standalone:
+    container_name: milvus-standalone
+    image: milvusdb/milvus:v2.6.8-gpu
+    command: ["milvus", "run", "standalone"]
+    security_opt:
+    - seccomp:unconfined
+    environment:
+      ETCD_ENDPOINTS: etcd:2379
+      MINIO_ADDRESS: minio:9000
+      MQ_TYPE: woodpecker
+      QUOTA_AND_LIMITS_ENABLED: false  # 禁用配额与限速（修正键名）
+    volumes:
+      - ./data/milvus:/var/lib/milvus
+      - ./config/milvus/milvus.yaml:/milvus/configs/milvus.yaml:ro
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9091/healthz"]
+      interval: 30s
+      start_period: 90s
+      timeout: 20s
+      retries: 3
+    ports:
+      - "19530:19530"
+      - "9091:9091"
+    depends_on:
+      - "etcd"
+      - "minio"
+    restart: unless-stopped
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              capabilities: ["gpu"]
+              device_ids: ["0"]
+
+  milvus-client:
+    container_name: milvus-client
+    image: zilliz/attu:v2.6
+    environment:
+      MILVUS_URL: http://standalone:19530
+      ATTU_LOG_LEVEL: info
+    volumes:
+      - ./data/images:/data/images
+    ports:
+      - "3000:3000"
+    depends_on:
+      - "standalone"
+
+  pic-search-webserver:
+    container_name: pic-search-webserver
+    image: tensorflow/webserver-env:25.02-tf2-py3-gpu
+    volumes:
+      - ./images:/temp/images # 添加图片数据路径
+      - ./data/images:/data/images # 内部图片数据路径
+      - ./config/webserver/src:/app/src:ro  # 添加代码路径
+    environment:
+      - DATA_PATH=/data/images
+      - MILVUS_HOST=${MILVUS_HOST:-standalone}
+      - MILVUS_PORT=19530  # 添加端口配置
+      - INPUT_SHAPE_SIZE=512 # 修改输入形状大小
+      - VECTOR_DIMENSION=512  # 修改向量维度
+      - MAX_THREADS=10  # 添加线程数配置
+      - BATCH_SIZE=50  # 添加图片批量预测大小配置
+      - EMBEDDING_INDEX_TYPE=HNSW # 添加向量索引类型配置
+      - N_LIST=128 # 创建索引时总的聚类中心个数
+      - SEARCH_N_LIST=32 # 搜索时使用的聚类中心个数
+      - TF_CPP_MIN_LOG_LEVEL=3
+    ports:
+      - "5000:5000"
+    command: ["python", "app.py"]
+    depends_on:
+      - "standalone"
+    restart: unless-stopped
+    gpus: all
+    ipc: host
+    ulimits:
+      memlock: -1
+      stack: 67108864
+
+
+  pic-search-webclient:
+    container_name: pic-search-webclient
+    image: milvusbootcamp/pic-search-webclient:2.0
+    volumes:
+      - ./images:/temp/images # 添加图片数据路径
+    environment:
+      - API_URL=http://${WEBSERVER_IP:-localhost}:5000
+    ports:
+      - "8001:80"
+    depends_on:
+      - "pic-search-webserver"
+    restart: unless-stopped
+
+networks:
+  default:
+    name: milvus
