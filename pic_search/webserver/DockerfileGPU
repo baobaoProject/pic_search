@@ -1,9 +1,14 @@
-FROM tensorflow/webserver-env:25.02-tf2-py3-gpu
+FROM nvcr.io/nvidia/tensorflow:25.02-tf2-py3
+
+WORKDIR /app/src
+ENV TF_XLA_FLAGS=--tf_xla_cpu_global_jit
+COPY ./requirements_no_tf.txt /app/requirements_no_tf.txt
+COPY ./models/vgg16_weights_tf_dim_ordering_tf_kernels_notop.h5 /app/models/vgg16_weights_tf_dim_ordering_tf_kernels_notop.h5
+RUN mkdir -p /root/.keras/models && mv /app/models/* /root/.keras/models/
+
+RUN pip install --no-cache-dir -r /app/requirements_no_tf.txt -i https://mirrors.aliyun.com/pypi/simple --trusted-host mirrors.aliyun.com
 
 COPY ./src /app/src
 
-RUN mkdir -p /tmp/search-images
-
 CMD ["python", "app.py"]
-
-# docker build   -t   milvusbootcamp/pic-search-webserver:25.02-tf2-py3-gpu -f   ./DockerfileGPU .
+# docker build   -t   tensorflow/webserver:nvidia-25.02-tf2-py3-gpu -f ./DockerfileGPU  .

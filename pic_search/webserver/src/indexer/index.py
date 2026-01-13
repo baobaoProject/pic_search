@@ -133,8 +133,7 @@ def insert_vectors(table_name, vectors, image_paths):
         logging.error(f"Error inserting vectors: {e}")
         raise e
 
-
-def delete_table(table_name):
+def drop_collection(table_name):
     """
     Delete a collection
     """
@@ -145,6 +144,19 @@ def delete_table(table_name):
             logging.info(f"Collection {table_name} dropped")
     except Exception as e:
         logging.error(f"Error dropping collection: {e}")
+        raise e
+
+def clear_collection(table_name):
+    """
+    Clear a collection
+    """
+    try:
+        client = milvus_client()
+        if client.has_collection(table_name):
+            client.delete(table_name)
+            logging.info(f"Collection {table_name} clear")
+    except Exception as e:
+        logging.error(f"Error clearing collection: {e}")
         raise e
 
 

@@ -11,9 +11,9 @@ from flask import Flask, request, send_file, jsonify
 from flask_cors import CORS
 from flask_restful import reqparse
 
-import tensorflow as tf  # type: ignore
+import tensorflow as tf
 from tensorflow.keras.applications.vgg16 import VGG16
-from werkzeug.utils import secure_filename  # type: ignore
+from werkzeug.utils import secure_filename
 
 from common.config import DATA_PATH, DEFAULT_TABLE
 from common.config import UPLOAD_PATH
@@ -24,6 +24,8 @@ from service.delete import do_delete
 from service.search import do_search
 from service.train import do_train
 from indexer.index import milvus_client
+import gunicorn.app.wsgiapp
+import sys
 
 # 移除 TF 1.x 兼容配置，使用默认的 Eager Execution
 
@@ -165,4 +167,7 @@ if __name__ == "__main__":
     # 配置日志级别为 INFO，确保 logging.info 能够输出到控制台
     logging.basicConfig(level=logging.INFO,format='%(asctime)s - %(levelname)s - %(message)s',datefmt='%Y-%m-%d %H:%M:%S')
     load_vgg_model()
-    app.run(host="0.0.0.0")
+    # app.run(host="0.0.0.0", debug=False)
+    # 使用生产级服务器
+    sys.argv = ["gunicorn", "--bind", "0.0.0.0:5000", "--workers", "4", "app:app"]
+    gunicorn.app.wsgiapp.run()
