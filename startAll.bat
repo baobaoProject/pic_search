@@ -1,0 +1,1 @@
+docker-compose -f milvus-pic-search-webserver.yml  up -d 

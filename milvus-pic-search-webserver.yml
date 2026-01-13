@@ -86,16 +86,17 @@ services:
 
   pic-search-webserver:
     container_name: pic-search-webserver
-    image: tensorflow/webserver-env:25.02-tf2-py3-gpu
+    # image: tensorflow/webserver:nvidia-25.02-tf2-py3-gpu  # gpu镜像
+    image: tensorflow/webserver:2.20.0   # cpu镜像
     volumes:
       - ./images:/temp/images # 添加图片数据路径
       - ./data/images:/data/images # 内部图片数据路径
-      - ./config/webserver/src:/app/src:ro  # 添加代码路径
+      - ./webserver/src:/app/src:ro  # 添加代码路径
     environment:
       - DATA_PATH=/data/images
       - MILVUS_HOST=${MILVUS_HOST:-standalone}
       - MILVUS_PORT=19530  # 添加端口配置
-      - INPUT_SHAPE_SIZE=512 # 修改输入形状大小
+      - INPUT_SHAPE_SIZE=224 # 修改输入形状大小
       - VECTOR_DIMENSION=512  # 修改向量维度
       - MAX_THREADS=10  # 添加线程数配置
       - BATCH_SIZE=50  # 添加图片批量预测大小配置

@@ -1,3 +1,5 @@
-/pic_search/webserver/.venv/
+/webserver/.venv/
 /.idea/
-/pic_search/webserver/.idea/
+/webserver/.idea/
+/images/
+/data/

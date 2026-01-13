@@ -1,0 +1,1 @@
+docker-compose -f milvus-standalone-docker-compose-gpu.yml  up -d 
