@@ -153,7 +153,7 @@ def clear_collection(table_name):
     try:
         client = milvus_client()
         if client.has_collection(table_name):
-            client.delete(table_name)
+            client.delete(table_name, filter="id > 0")
             logging.info(f"Collection {table_name} clear")
     except Exception as e:
         logging.error(f"Error clearing collection: {e}")

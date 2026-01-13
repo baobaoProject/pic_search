@@ -97,7 +97,7 @@ services:
       - MILVUS_HOST=${MILVUS_HOST:-standalone}
       - MILVUS_PORT=19530  # 添加端口配置
       - INPUT_SHAPE_SIZE=224 # 修改输入形状大小
-      - VECTOR_DIMENSION=512  # 修改向量维度
+      - VECTOR_DIMENSION=224  # 修改向量维度
       - MAX_THREADS=10  # 添加线程数配置
       - BATCH_SIZE=50  # 添加图片批量预测大小配置
       - EMBEDDING_INDEX_TYPE=HNSW # 添加向量索引类型配置

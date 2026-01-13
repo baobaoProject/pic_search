@@ -1,7 +1,7 @@
 from .config import INPUT_SHAPE_SIZE,N_LIST,SEARCH_N_LIST
 
 default_indexer="milvus"
-default_cache_dir="./tmp"
+default_cache_dir="/tmp/milvus_pic_search_cache"
 # 输入图片的尺寸
 input_shape=(int(INPUT_SHAPE_SIZE), int(INPUT_SHAPE_SIZE), 3)
 image_size=(int(INPUT_SHAPE_SIZE),int(INPUT_SHAPE_SIZE))

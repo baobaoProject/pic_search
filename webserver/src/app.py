@@ -24,7 +24,7 @@ from service.delete import do_delete
 from service.search import do_search
 from service.train import do_train
 from indexer.index import milvus_client
-import gunicorn.app.wsgiapp
+import gunicorn.app.base
 import sys
 
 # 移除 TF 1.x 兼容配置，使用默认的 Eager Execution
@@ -49,10 +49,15 @@ model = None
 
 def load_vgg_model():
     global model
+    if model is not None:
+        return model
+    logging.info("Loading VGG16 model...")
     model = VGG16(weights='imagenet',
                   input_shape=input_shape,
                   pooling='max',
                   include_top=False)
+    logging.info("VGG16 model loaded.")
+    return model
 
 
 @app.route('/api/v1/train', methods=['POST'])
@@ -68,8 +73,10 @@ def do_train_api():
     vector_dimension = args['VectorDimension']
     embedding_index_type = args['EmbeddingIndexType']
     try:
+        # Ensure model is loaded
+        current_model = load_vgg_model()
         # 在 Eager 模式下，不需要传递 graph 和 sess
-        result = do_train(table_name, file_path, model,vector_dimension, embedding_index_type)
+        result = do_train(table_name, file_path, current_model, vector_dimension, embedding_index_type)
         return result
     except Exception as e:
         return "Error with {}".format(e)
@@ -136,7 +143,9 @@ def do_search_api():
         filename = secure_filename(file.filename)
         file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
         file.save(file_path)
-        res_id,res_distance = do_search(table_name, file_path, top_k, model)
+        # Ensure model is loaded
+        current_model = load_vgg_model()
+        res_id,res_distance = do_search(table_name, file_path, top_k, current_model)
         if isinstance(res_id, str):
             return res_id
         res_img = [request.url_root +"api/v1/data" + x for x in res_id]
@@ -163,11 +172,32 @@ def before_request():
     # Establish connection to Milvus
     milvus_client()
 
+# Load model at module level so Gunicorn workers initialize it
+# load_vgg_model() # Moved to lazy loading to avoid TensorFlow fork issues
+
+class StandaloneApplication(gunicorn.app.base.BaseApplication):
+    def __init__(self, app, options=None):
+        self.application = app
+        self.options = options or {}
+        super().__init__()
+
+    def load_config(self):
+        config = {key: value for key, value in self.options.items()
+                  if key in self.cfg.settings and value is not None}
+        for key, value in config.items():
+            self.cfg.set(key.lower(), value)
+
+    def load(self):
+        return self.application
+
 if __name__ == "__main__":
     # 配置日志级别为 INFO，确保 logging.info 能够输出到控制台
     logging.basicConfig(level=logging.INFO,format='%(asctime)s - %(levelname)s - %(message)s',datefmt='%Y-%m-%d %H:%M:%S')
-    load_vgg_model()
     # app.run(host="0.0.0.0", debug=False)
     # 使用生产级服务器
-    sys.argv = ["gunicorn", "--bind", "0.0.0.0:5000", "--workers", "4", "app:app"]
-    gunicorn.app.wsgiapp.run()
+    options = {
+        'bind': '0.0.0.0:5000',
+        'workers': 4,
+        'timeout': 120,
+    }
+    StandaloneApplication(app, options).run()
