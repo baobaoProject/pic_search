@@ -3,8 +3,8 @@ import threading
 
 from pymilvus import MilvusClient, DataType  # type: ignore
 
-from common.config import MILVUS_HOST, MILVUS_PORT, DEFAULT_TABLE,DEFAULT_DATABASE
-from common.const import vector_field_name, index_params_map,vector_dimension
+from common.config import MILVUS_HOST, MILVUS_PORT, DEFAULT_TABLE, DEFAULT_DATABASE, MODEL_NAME
+from common.const import vector_field_name, index_params_map, model_info
 
 # 创建一个线程锁
 client_lock = threading.Lock()
@@ -92,7 +92,8 @@ def create_table(table_name=DEFAULT_TABLE, delete_if_exists=False, embedding_ind
 
         # 字段可以启动mmap_enabled=true属性，以节约内存
         schema.add_field(field_name="id", datatype=DataType.INT64, is_primary=True)
-        schema.add_field(field_name=vector_field_name, datatype=DataType.FLOAT_VECTOR, dim=vector_dimension)
+        dimension = model_info[MODEL_NAME]["vector_dimension"] or 512
+        schema.add_field(field_name=vector_field_name, datatype=DataType.FLOAT_VECTOR, dim=dimension)
         schema.add_field(field_name="image_path", datatype=DataType.VARCHAR, max_length=512)
         
         # 准备索引参数

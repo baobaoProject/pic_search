@@ -1,4 +1,4 @@
-from .config import INPUT_SHAPE_SIZE,N_LIST,SEARCH_N_LIST
+from .config import INPUT_SHAPE_SIZE,N_LIST,SEARCH_N_LIST,MODEL_NAME
 
 # 输入图片的尺寸
 input_shape=(int(INPUT_SHAPE_SIZE), int(INPUT_SHAPE_SIZE), 3)
@@ -6,8 +6,19 @@ image_size=(int(INPUT_SHAPE_SIZE),int(INPUT_SHAPE_SIZE))
 
 # 向量字段名，表示向量的字段名为 embedding
 vector_field_name = "embedding"
-# 向量维度
-vector_dimension=512
+
+# 定义模型的基础信息
+model_info = {
+    "VGG16":{
+        "vector_dimension": 512,
+        "input_shape_size": 224,
+    },
+    "EfficientNetV2S":{
+        "vector_dimension": 1280,
+        "input_shape_size": INPUT_SHAPE_SIZE,
+    }
+}
+
 # 定义索引类型和对应的参数映射
 index_params_map = {
     "IVF_FLAT": { # 索引类型为 IVF_FLAT

@@ -91,7 +91,8 @@ services:
     volumes:
       - ./images:/temp/images # 添加图片数据路径
       - ./data/images:/data/images # 内部图片数据路径
-      - ./webserver/src:/app/src:ro  # 添加代码路径
+      - ./webserver/src:/app/src:ro  # 添加代码路径,只读
+      - ./webserver/models:/root/.keras/models # 添加模型路径
     environment:
       - DATA_PATH=/data/images
       - MILVUS_HOST=${MILVUS_HOST:-standalone}

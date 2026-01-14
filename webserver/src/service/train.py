@@ -6,19 +6,17 @@ import time
 from concurrent.futures import ThreadPoolExecutor
 
 import numpy as np
-from tensorflow.keras.applications.vgg16 import preprocess_input as preprocess_input_vgg  # type: ignore
-from tensorflow.keras.preprocessing import image  # type: ignore
 
 from common import config
 from common.config import DEFAULT_TABLE
-from common.const import image_size
-from  indexer import  index
+from indexer import index
+from model.extractor import feature_extractor
 
 # 全局锁，确保 model.predict 串行执行，避免 GPU OOM
 predict_lock = threading.Lock()
 # 全局map
 cache_map = {}
-def do_train(table_name, data_path, model,vector_dimension, embedding_index_type):
+def do_train(table_name, data_path, embedding_index_type):
     # 创建线程池
     executor = ThreadPoolExecutor(max_workers=config.MAX_THREADS)
     """
@@ -65,7 +63,7 @@ def do_train(table_name, data_path, model,vector_dimension, embedding_index_type
                     temp_image_paths = image_paths.copy()
                     # 清空数组
                     image_paths.clear()
-                    future = executor.submit(process_predict_and_insert,temp_image_paths,model, table_name or DEFAULT_TABLE)
+                    future = executor.submit(process_predict_and_insert,temp_image_paths, table_name or DEFAULT_TABLE)
                     total_indexed += len(temp_image_paths)
                     cache_map.setdefault("total", total_indexed)
                     futures.append(future)
@@ -73,7 +71,7 @@ def do_train(table_name, data_path, model,vector_dimension, embedding_index_type
 
         if len(image_paths) > 0:
             # 剩余的图片提取特征
-            future = executor.submit(process_predict_and_insert, image_paths, model, table_name or DEFAULT_TABLE)
+            future = executor.submit(process_predict_and_insert, image_paths, table_name or DEFAULT_TABLE)
             total_indexed += len(image_paths)
             futures.append(future)
         # Wait for all tasks to complete and check for errors
@@ -95,13 +93,12 @@ def train_status_cache():
     return cache_map
 
 # 提取特征并插入 Milvus
-def process_predict_and_insert(image_paths,model,table_name):
+def process_predict_and_insert(image_paths, table_name):
     # 提取特征
-    features = []
     try:
         batch_tensors = []
         for img_path in image_paths:
-            img_tensor = preprocess_img_vgg(img_path)
+            img_tensor = feature_extractor.preprocess_image(img_path)
             batch_tensors.append(img_tensor)
 
         # 将所有图像合并为一个批次
@@ -110,13 +107,7 @@ def process_predict_and_insert(image_paths,model,table_name):
         # 一次性预测整个批次
         # 使用锁确保同一时刻只有一个线程在使用 GPU 进行预测
         with predict_lock:
-            batch_features = model.predict(batch)
-            
-        # 分别处理每个特征向量
-        for i, feat in enumerate(batch_features):
-            feat = feat.flatten()
-            feat = feat / np.linalg.norm(feat)
-            features.append(feat.tolist())
+            features = feature_extractor.extract_batch_features(batch)
 
         # Batch insert
         index.insert_vectors(table_name or DEFAULT_TABLE, features, image_paths)
@@ -125,11 +116,3 @@ def process_predict_and_insert(image_paths,model,table_name):
         logging.error(f"Error processing image : {e}")
     return len(features)
 
-
-# 预处理图片
-def preprocess_img_vgg(img_path):
-    img = image.load_img(img_path, target_size=image_size)
-    img_tensor = image.img_to_array(img)
-    img_tensor = np.expand_dims(img_tensor, axis=0)
-    img_tensor = preprocess_input_vgg(img_tensor)
-    return img_tensor

@@ -4,8 +4,6 @@ WORKDIR /app/src
 ENV TF_XLA_FLAGS=--tf_xla_cpu_global_jit
 
 COPY ./requirements.txt /app/requirements.txt
-COPY ./models/vgg16_weights_tf_dim_ordering_tf_kernels_notop.h5 /app/models/vgg16_weights_tf_dim_ordering_tf_kernels_notop.h5
-RUN mkdir -p /root/.keras/models && mv /app/models/* /root/.keras/models/
 
 # 降级protobuf以解决兼容性问题
 RUN pip install protobuf==3.20.*

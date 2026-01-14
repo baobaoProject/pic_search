@@ -11,12 +11,10 @@ from flask_cors import CORS
 from flask_restful import reqparse
 
 import tensorflow as tf
-from tensorflow.keras.applications.vgg16 import VGG16
 from werkzeug.utils import secure_filename
 
 from common.config import DATA_PATH, DEFAULT_TABLE
 from common.config import UPLOAD_PATH
-from common.const import input_shape
 from service.count import do_count
 from service.delete import do_delete
 from service.search import do_search
@@ -42,20 +40,6 @@ os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 app.config['JSON_SORT_KEYS'] = False
 CORS(app)
 
-model = None
-
-def load_vgg_model():
-    global model
-    if model is not None:
-        return model
-    logging.info("Loading VGG16 model...")
-    model = VGG16(weights='imagenet',
-                  input_shape=input_shape,
-                  pooling='max',
-                  include_top=False)
-    logging.info("VGG16 model loaded.")
-    return model
-
 
 @app.route('/api/v1/train', methods=['POST'])
 def do_train_api():
@@ -67,13 +51,10 @@ def do_train_api():
         parse_args()
     table_name = args['Table']
     file_path = args['File']
-    vector_dimension = args['VectorDimension']
     embedding_index_type = args['EmbeddingIndexType']
     try:
-        # Ensure model is loaded
-        current_model = load_vgg_model()
         # 在 Eager 模式下，不需要传递 graph 和 sess
-        result = do_train(table_name, file_path, current_model, vector_dimension, embedding_index_type)
+        result = do_train(table_name, file_path, embedding_index_type)
         return result
     except Exception as e:
         return "Error with {}".format(e)
@@ -140,9 +121,8 @@ def do_search_api():
         filename = secure_filename(file.filename)
         file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
         file.save(file_path)
-        # Ensure model is loaded
-        current_model = load_vgg_model()
-        res_id,res_distance = do_search(table_name, file_path, top_k, current_model)
+        
+        res_id,res_distance = do_search(table_name, file_path, top_k)
         if isinstance(res_id, str):
             return res_id
         res_img = [request.url_root +"api/v1/data" + x for x in res_id]
@@ -168,9 +148,6 @@ def before_request():
     # 在每个请求之前建立Milvus连接
     # Establish connection to Milvus
     milvus_client()
-
-# Load model at module level so Gunicorn workers initialize it
-# load_vgg_model() # Moved to lazy loading to avoid TensorFlow fork issues
 
 class StandaloneApplication(gunicorn.app.base.BaseApplication):
     def __init__(self, app, options=None):
