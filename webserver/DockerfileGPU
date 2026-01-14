@@ -2,11 +2,11 @@ FROM nvcr.io/nvidia/tensorflow:25.02-tf2-py3
 
 WORKDIR /app/src
 ENV TF_XLA_FLAGS=--tf_xla_cpu_global_jit
-COPY ./requirements_no_tf.txt /app/requirements_no_tf.txt
+COPY ./requirements.txt /app/requirements.txt
 COPY ./models/vgg16_weights_tf_dim_ordering_tf_kernels_notop.h5 /app/models/vgg16_weights_tf_dim_ordering_tf_kernels_notop.h5
 RUN mkdir -p /root/.keras/models && mv /app/models/* /root/.keras/models/
 
-RUN pip install --no-cache-dir -r /app/requirements_no_tf.txt -i https://mirrors.aliyun.com/pypi/simple --trusted-host mirrors.aliyun.com
+RUN pip install --no-cache-dir -r /app/requirements.txt -i https://mirrors.aliyun.com/pypi/simple --trusted-host mirrors.aliyun.com
 
 COPY ./src /app/src
 

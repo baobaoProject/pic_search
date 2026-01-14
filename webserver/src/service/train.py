@@ -16,20 +16,21 @@ from  indexer import  index
 
 # 全局锁，确保 model.predict 串行执行，避免 GPU OOM
 predict_lock = threading.Lock()
-
+# 全局map
+cache_map = {}
 def do_train(table_name, data_path, model,vector_dimension, embedding_index_type):
     # 创建线程池
     executor = ThreadPoolExecutor(max_workers=config.MAX_THREADS)
     """
     Train the model by indexing images to Milvus
     """
+    cache_map.clear()
     try:
         # Create table if not exists
         if index.has_collection(table_name or DEFAULT_TABLE) is False:
             # 创建表
             with predict_lock:
                 index.create_table(table_name or config.DEFAULT_TABLE,
-                             vector_dimension or config.VECTOR_DIMENSION,
                              False,
                              embedding_index_type or config.EMBEDDING_INDEX_TYPE)
 
@@ -65,18 +66,22 @@ def do_train(table_name, data_path, model,vector_dimension, embedding_index_type
                     # 清空数组
                     image_paths.clear()
                     future = executor.submit(process_predict_and_insert,temp_image_paths,model, table_name or DEFAULT_TABLE)
-                    futures.append(future)
                     total_indexed += len(temp_image_paths)
+                    cache_map.setdefault("total", total_indexed)
+                    futures.append(future)
                     logging.info(f"Batch submitted {len(temp_image_paths)} images.")
 
         if len(image_paths) > 0:
             # 剩余的图片提取特征
             future = executor.submit(process_predict_and_insert, image_paths, model, table_name or DEFAULT_TABLE)
-            futures.append(future)
             total_indexed += len(image_paths)
+            futures.append(future)
         # Wait for all tasks to complete and check for errors
+        cache_map.setdefault("total", total_indexed)
+        current=0
         for future in futures:
-            future.result()
+            current += future.result()
+            cache_map.setdefault("current", current)
         executor.shutdown(wait=True)
         logging.info(f"Total submitted so far: {len(futures)},Total indexed: {total_indexed},")
         return str(total_indexed)
@@ -86,6 +91,8 @@ def do_train(table_name, data_path, model,vector_dimension, embedding_index_type
         logging.error(f"Error in do_train: {e}")
         return str(e)
 
+def train_status_cache():
+    return cache_map
 
 # 提取特征并插入 Milvus
 def process_predict_and_insert(image_paths,model,table_name):

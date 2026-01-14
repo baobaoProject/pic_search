@@ -6,7 +6,6 @@ os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 import os.path as path
 import shutil
 
-from diskcache import Cache
 from flask import Flask, request, send_file, jsonify
 from flask_cors import CORS
 from flask_restful import reqparse
@@ -17,15 +16,13 @@ from werkzeug.utils import secure_filename
 
 from common.config import DATA_PATH, DEFAULT_TABLE
 from common.config import UPLOAD_PATH
-from common.const import default_cache_dir
 from common.const import input_shape
 from service.count import do_count
 from service.delete import do_delete
 from service.search import do_search
-from service.train import do_train
+from service.train import do_train,train_status_cache
 from indexer.index import milvus_client
 import gunicorn.app.base
-import sys
 
 # 移除 TF 1.x 兼容配置，使用默认的 Eager Execution
 
@@ -109,8 +106,8 @@ def do_count_api():
 
 
 @app.route('/api/v1/process')
-def thread_status_api():
-    cache = Cache(default_cache_dir)
+def train_status_api():
+    cache = train_status_cache()
     return "current: {}, total: {}".format(cache.get('current', 0), cache.get('total', 0))
 
 

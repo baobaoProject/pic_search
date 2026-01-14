@@ -2,8 +2,10 @@ import logging
 import threading
 
 from pymilvus import MilvusClient, DataType  # type: ignore
-from common.config import MILVUS_HOST, MILVUS_PORT, VECTOR_DIMENSION, DEFAULT_TABLE,EMBEDDING_INDEX_TYPE
-from common.const import vector_field_name,index_params_map
+
+from common.config import MILVUS_HOST, MILVUS_PORT, DEFAULT_TABLE,DEFAULT_DATABASE
+from common.const import vector_field_name, index_params_map,vector_dimension
+
 # 创建一个线程锁
 client_lock = threading.Lock()
 # 全局 MilvusClient 实例
@@ -24,6 +26,13 @@ def milvus_client():
             if _client is None:
                 uri = f"http://{MILVUS_HOST}:{MILVUS_PORT}"
                 _client = MilvusClient(uri=uri)
+                databases=_client.list_databases()
+                if DEFAULT_DATABASE not in databases:
+                    _client.create_database(DEFAULT_DATABASE)
+                    logging.info(f"Database {DEFAULT_DATABASE} created")
+                    _client.close()
+                # 使用指定的数据库
+                _client = MilvusClient(uri=uri, db_name=DEFAULT_DATABASE)
         return _client
     except Exception as e:
         logging.error(f"Failed to connect to Milvus: {e}")
@@ -46,8 +55,10 @@ def count_rows(table_name=DEFAULT_TABLE):
     :return:
     """
     client = milvus_client()
-    collection_info=client.get_collection_stats(table_name)
-    return collection_info.get('row_count', 0)
+    result=client.query(table_name, "id > 0", output_fields=["count(*)"])
+    logging.info(f"Count: {result}")
+    # Count: data: ["{'count(*)': 128}"], extra_info: {}
+    return result[0]["count(*)"]
 
 # FLAT: 精确搜索，速度慢但精度最高
 # IVF_FLAT: 倒排文件索引，速度快于FLAT
@@ -59,7 +70,7 @@ def count_rows(table_name=DEFAULT_TABLE):
 # 内存优化: IVF_PQ > IVF_SQ8 > IVF_FLAT > FLAT
 # 大数据集: DISKANN > HNSW > IVF_PQ
 # GPU可用: GPU_IVF_FLAT 或 GPU_IVF_PQ
-def create_table(table_name=DEFAULT_TABLE, vector_dimension=VECTOR_DIMENSION, delete_if_exists=False, embedding_index_type="IVF_FLAT"):
+def create_table(table_name=DEFAULT_TABLE, delete_if_exists=False, embedding_index_type="IVF_FLAT"):
     """
     Create a new collection with the specified name
     """
@@ -79,6 +90,7 @@ def create_table(table_name=DEFAULT_TABLE, vector_dimension=VECTOR_DIMENSION, de
             enable_dynamic_field=True,
         )
 
+        # 字段可以启动mmap_enabled=true属性，以节约内存
         schema.add_field(field_name="id", datatype=DataType.INT64, is_primary=True)
         schema.add_field(field_name=vector_field_name, datatype=DataType.FLOAT_VECTOR, dim=vector_dimension)
         schema.add_field(field_name="image_path", datatype=DataType.VARCHAR, max_length=512)

@@ -1,14 +1,13 @@
 from .config import INPUT_SHAPE_SIZE,N_LIST,SEARCH_N_LIST
 
-default_indexer="milvus"
-default_cache_dir="/tmp/milvus_pic_search_cache"
 # 输入图片的尺寸
 input_shape=(int(INPUT_SHAPE_SIZE), int(INPUT_SHAPE_SIZE), 3)
 image_size=(int(INPUT_SHAPE_SIZE),int(INPUT_SHAPE_SIZE))
 
 # 向量字段名，表示向量的字段名为 embedding
 vector_field_name = "embedding"
-
+# 向量维度
+vector_dimension=512
 # 定义索引类型和对应的参数映射
 index_params_map = {
     "IVF_FLAT": { # 索引类型为 IVF_FLAT

@@ -2,8 +2,8 @@ import os
 
 MILVUS_HOST = os.getenv("MILVUS_HOST", "127.0.0.1")
 MILVUS_PORT = os.getenv("MILVUS_PORT", 19530)
-# 向量维度
-VECTOR_DIMENSION = os.getenv("VECTOR_DIMENSION", 512)
+# 默认的数据库
+DEFAULT_DATABASE = os.getenv("DEFAULT_DATABASE", "pic_search")
 DATA_PATH = os.getenv("DATA_PATH", "/data/images")
 DEFAULT_TABLE = os.getenv("DEFAULT_TABLE", "milvus")
 UPLOAD_PATH = "/tmp/search-images"
