@@ -92,6 +92,7 @@ services:
       - ./images:/temp/images # 添加图片数据路径
       - ./data/images:/data/images # 内部图片数据路径
       - ./webserver/src:/app/src:ro  # 添加代码路径
+      - ./webserver/models:/root/.keras/models # 添加模型路径
     environment:
       - DATA_PATH=/data/images
       - MILVUS_HOST=${MILVUS_HOST:-standalone}
@@ -103,7 +104,6 @@ services:
       - EMBEDDING_INDEX_TYPE=HNSW # 添加向量索引类型配置
       - N_LIST=128 # 创建索引时总的聚类中心个数
       - SEARCH_N_LIST=32 # 搜索时使用的聚类中心个数
-      - TF_CPP_MIN_LOG_LEVEL=3
     ports:
       - "5000:5000"
     command: [ "python", "app.py" ]
