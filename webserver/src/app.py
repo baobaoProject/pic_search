@@ -1,37 +1,22 @@
 import logging
 import os
-# 尽早设置 TF 日志级别，必须在 import tensorflow 之前
-os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
-
 import os.path as path
 import shutil
+import multiprocessing
 
 from flask import Flask, request, send_file, jsonify
 from flask_cors import CORS
 from flask_restful import reqparse
-
-import tensorflow as tf
 from werkzeug.utils import secure_filename
 
 from common.config import DATA_PATH, DEFAULT_TABLE
 from common.config import UPLOAD_PATH
 from service.count import do_count
 from service.delete import do_delete
-from service.search import do_search
-from service.train import do_train,train_status_cache
+from service.search import do_search, do_text_search
+from service.train import do_train, train_status_cache
 from indexer.index import milvus_client
 import gunicorn.app.base
-
-# 移除 TF 1.x 兼容配置，使用默认的 Eager Execution
-
-# 配置 GPU 显存按需增长，防止占用所有显存
-gpus = tf.config.experimental.list_physical_devices('GPU')
-if gpus:
-    try:
-        for gpu in gpus:
-            tf.config.experimental.set_memory_growth(gpu, True)
-    except RuntimeError as e:
-        print(f"GPU memory growth setting failed: {e}")
 
 app = Flask(__name__)
 ALLOWED_EXTENSIONS = set(['jpg', 'png','jpeg',"gif","bmp"])
@@ -131,6 +116,37 @@ def do_search_api():
         return jsonify(res), 200
     return "not found", 400
 
+
+@app.route('/api/v1/text_search', methods=['POST'])
+def do_text_search_api():
+    """Text-to-image search API"""
+    args = reqparse.RequestParser(). \
+        add_argument("Table", type=str, location=['args', 'form', 'json']). \
+        add_argument("Text", type=str, location=['args', 'form', 'json']). \
+        add_argument("Num", type=int, default=1, location=['args', 'form', 'json']). \
+        parse_args()
+    
+    table_name = args['Table']
+    if not table_name:
+        table_name = DEFAULT_TABLE
+    text = args['Text']
+    if not text:
+        return "no text data", 400
+    top_k = args['Num']
+    
+    try:
+        res_id, res_distance = do_text_search(table_name, text, top_k)
+        if isinstance(res_id, str):
+            return res_id
+        res_img = [request.url_root + "api/v1/data" + x for x in res_id]
+        res = dict(zip(res_img, res_distance))
+        res = sorted(res.items(), key=lambda item: item[1])
+        return jsonify(res), 200
+    except Exception as e:
+        logging.error(f"Error in text search: {e}")
+        return str(e), 500
+
+
 @app.before_request
 def before_request():
     # 定义允许的前缀列表
@@ -165,6 +181,9 @@ class StandaloneApplication(gunicorn.app.base.BaseApplication):
         return self.application
 
 if __name__ == "__main__":
+    # 设置多进程的启动方式为spawn，解决CUDA在子进程中的初始化问题
+    multiprocessing.set_start_method('spawn', force=True)
+    
     # 配置日志级别为 INFO，确保 logging.info 能够输出到控制台
     logging.basicConfig(level=logging.INFO,format='%(asctime)s - %(levelname)s - %(message)s',datefmt='%Y-%m-%d %H:%M:%S')
     # app.run(host="0.0.0.0", debug=False)

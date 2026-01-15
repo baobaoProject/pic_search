@@ -1,21 +1,17 @@
-FROM tensorflow/tensorflow:2.20.0
+FROM pytorch/pytorch:2.9.1-cuda12.8-cudnn9-runtime
 
 WORKDIR /app/src
-ENV TF_XLA_FLAGS=--tf_xla_cpu_global_jit
 
 COPY ./requirements.txt /app/requirements.txt
 
-# 降级protobuf以解决兼容性问题
-RUN pip install protobuf==3.20.*
-
-RUN pip install --upgrade pip && pip install --no-cache-dir  -r  /app/requirements.txt -i https://mirrors.aliyun.com/pypi/simple --trusted-host mirrors.aliyun.com && \
+# 安装 Python 依赖（PyTorch 已由基础镜像提供）
+RUN pip install --upgrade pip && \
+    pip install --no-cache-dir -r /app/requirements.txt -i https://mirrors.aliyun.com/pypi/simple --trusted-host mirrors.aliyun.com && \
     pip cache purge && \
-    rm -rf /root/.cache/pip && \
-    apt-get clean && \
-    rm -rf /var/lib/apt/lists/*
+    rm -rf /root/.cache/pip
 
 # copy source code
 COPY ./src /app/src
 
 CMD ["python", "app.py"]
-# docker build   -t   tensorflow/webserver:2.20.0 -f ./Dockerfile  .
+# docker build -t pytorch/webserver:2.9.1-cuda12.8-cudnn9-runtime -f ./Dockerfile .

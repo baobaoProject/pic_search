@@ -20,7 +20,7 @@ services:
 
   minio:
     container_name: milvus-minio
-    image: minio/minio:RELEASE.2024-12-18T13-15-44Z
+    image: minio/minio:RELEASE.2025-09-07T16-13-09Z
     environment:
       MINIO_ACCESS_KEY: minioadmin
       MINIO_SECRET_KEY: minioadmin
@@ -86,8 +86,7 @@ services:
 
   pic-search-webserver:
     container_name: pic-search-webserver
-    # image: tensorflow/webserver:nvidia-25.02-tf2-py3-gpu  # gpu镜像
-    image: tensorflow/webserver:2.20.0   # cpu镜像
+    image: pytorch/webserver:2.9.1-cuda12.8-cudnn9-runtime
     volumes:
       - ./images:/temp/images # 添加图片数据路径
       - ./data/images:/data/images # 内部图片数据路径
@@ -97,6 +96,7 @@ services:
       - DATA_PATH=/data/images
       - MILVUS_HOST=${MILVUS_HOST:-standalone}
       - MILVUS_PORT=19530  # 添加端口配置
+      - MODEL_NAME=CLIP # 添加模型名称
       - DEFAULT_DATABASE=pic_search # 添加默认数据库名称
       - INPUT_SHAPE_SIZE=224 # 修改输入形状大小
       - MAX_THREADS=5  # 添加线程数配置
@@ -104,7 +104,6 @@ services:
       - EMBEDDING_INDEX_TYPE=HNSW # 添加向量索引类型配置
       - N_LIST=128 # 创建索引时总的聚类中心个数
       - SEARCH_N_LIST=32 # 搜索时使用的聚类中心个数
-      - TF_CPP_MIN_LOG_LEVEL=3
     ports:
       - "5000:5000"
     command: [ "python", "app.py" ]

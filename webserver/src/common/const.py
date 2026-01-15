@@ -16,6 +16,10 @@ model_info = {
     "EfficientNetV2S":{
         "vector_dimension": 1280,
         "input_shape_size": INPUT_SHAPE_SIZE,
+    },
+    "CLIP": {
+        "vector_dimension": 512,
+        "input_shape_size": 224, # CLIP 默认输入尺寸
     }
 }
 

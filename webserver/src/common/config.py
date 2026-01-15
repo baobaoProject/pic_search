@@ -1,7 +1,7 @@
 import os
 
 # 当前使用的模型
-MODEL_NAME = os.getenv("MODEL_NAME", "EfficientNetV2S")
+MODEL_NAME = os.getenv("MODEL_NAME", "CLIP")
 MILVUS_HOST = os.getenv("MILVUS_HOST", "127.0.0.1")
 MILVUS_PORT = os.getenv("MILVUS_PORT", 19530)
 # 默认的数据库

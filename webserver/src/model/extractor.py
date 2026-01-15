@@ -63,5 +63,13 @@ class FeatureExtractor:
         return model_info[MODEL_NAME]["vector_dimension"]
 
 
-# Create a global instance
-feature_extractor = FeatureExtractor()
+# 延迟创建全局实例，避免在主进程中初始化CUDA
+# 这样可以防止Gunicorn fork子进程时出现CUDA重新初始化错误
+feature_extractor = None
+
+def get_feature_extractor():
+    """获取特征提取器单例，延迟初始化"""
+    global feature_extractor
+    if feature_extractor is None:
+        feature_extractor = FeatureExtractor()
+    return feature_extractor

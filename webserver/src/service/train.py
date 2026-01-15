@@ -5,17 +5,16 @@ import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
 
-import numpy as np
-
 from common import config
 from common.config import DEFAULT_TABLE
 from indexer import index
-from model.extractor import feature_extractor
+from model import get_feature_extractor
 
 # 全局锁，确保 model.predict 串行执行，避免 GPU OOM
 predict_lock = threading.Lock()
 # 全局map
 cache_map = {}
+
 def do_train(table_name, data_path, embedding_index_type):
     # 创建线程池
     executor = ThreadPoolExecutor(max_workers=config.MAX_THREADS)
@@ -96,18 +95,12 @@ def train_status_cache():
 def process_predict_and_insert(image_paths, table_name):
     # 提取特征
     try:
-        batch_tensors = []
-        for img_path in image_paths:
-            img_tensor = feature_extractor.preprocess_image(img_path)
-            batch_tensors.append(img_tensor)
-
-        # 将所有图像合并为一个批次
-        batch = np.vstack(batch_tensors)
-
-        # 一次性预测整个批次
+        # 获取特征提取器实例（延迟初始化）
+        feature_extractor = get_feature_extractor()
+        
         # 使用锁确保同一时刻只有一个线程在使用 GPU 进行预测
         with predict_lock:
-            features = feature_extractor.extract_batch_features(batch)
+            features = feature_extractor.extract_batch_features(image_paths)
 
         # Batch insert
         index.insert_vectors(table_name or DEFAULT_TABLE, features, image_paths)
