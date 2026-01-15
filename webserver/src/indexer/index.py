@@ -3,13 +3,15 @@ import threading
 
 from pymilvus import MilvusClient, DataType  # type: ignore
 
-from common.config import MILVUS_HOST, MILVUS_PORT, DEFAULT_TABLE, DEFAULT_DATABASE, MODEL_NAME
-from common.const import vector_field_name, index_params_map, model_info
+from common.config import MILVUS_HOST, MILVUS_PORT, DEFAULT_TABLE, DEFAULT_DATABASE
+from common.const import vector_field_name, index_params_map
+import common
 
 # 创建一个线程锁
 client_lock = threading.Lock()
 # 全局 MilvusClient 实例
 _client = None
+
 
 def milvus_client():
     """
@@ -26,7 +28,7 @@ def milvus_client():
             if _client is None:
                 uri = f"http://{MILVUS_HOST}:{MILVUS_PORT}"
                 _client = MilvusClient(uri=uri)
-                databases=_client.list_databases()
+                databases = _client.list_databases()
                 if DEFAULT_DATABASE not in databases:
                     _client.create_database(DEFAULT_DATABASE)
                     logging.info(f"Database {DEFAULT_DATABASE} created")
@@ -48,6 +50,7 @@ def has_collection(table_name=DEFAULT_TABLE):
     client = milvus_client()
     return client.has_collection(table_name)
 
+
 # 获取集合中的元素数量
 def count_rows(table_name=DEFAULT_TABLE):
     """
@@ -55,10 +58,11 @@ def count_rows(table_name=DEFAULT_TABLE):
     :return:
     """
     client = milvus_client()
-    result=client.query(table_name, "id > 0", output_fields=["count(*)"])
+    result = client.query(table_name, "id > 0", output_fields=["count(*)"])
     logging.info(f"Count: {result}")
     # Count: data: ["{'count(*)': 128}"], extra_info: {}
     return result[0]["count(*)"]
+
 
 # FLAT: 精确搜索，速度慢但精度最高
 # IVF_FLAT: 倒排文件索引，速度快于FLAT
@@ -67,7 +71,7 @@ def count_rows(table_name=DEFAULT_TABLE):
 # ANNOY: 近似最近邻搜索
 # 精度优先: FLAT > HNSW > IVF_FLAT
 # 速度优先: GPU_IVF_PQ > GPU_IVF_FLAT > IVF_PQ > IVF_FLAT
-# 内存优化: IVF_PQ > IVF_SQ8 > IVF_FLAT > FLAT
+# 内存优化: IVF_PQ > IVF_SQ8 > IVF_FLAT > IVF_FLAT > FLAT
 # 大数据集: DISKANN > HNSW > IVF_PQ
 # GPU可用: GPU_IVF_FLAT 或 GPU_IVF_PQ
 def create_table(table_name=DEFAULT_TABLE, delete_if_exists=False, embedding_index_type="IVF_FLAT"):
@@ -79,11 +83,11 @@ def create_table(table_name=DEFAULT_TABLE, delete_if_exists=False, embedding_ind
         if delete_if_exists and client.has_collection(table_name):
             logging.info(f"Collection {table_name} already exists, dropping it...")
             client.drop_collection(table_name)
-        
+
         # 2.6 版本 MilvusClient.create_collection 更加简化
         # 如果不提供 schema，会创建一个带有 auto_id=True 的 id 主键和指定维度的 vector 字段
         # 但为了保持与原有字段一致（包含 image_path），我们最好还是定义 schema 或者使用快速创建参数
-        
+
         # 使用新 API 创建 Schema
         schema = client.create_schema(
             auto_id=True,
@@ -92,10 +96,10 @@ def create_table(table_name=DEFAULT_TABLE, delete_if_exists=False, embedding_ind
 
         # 字段可以启动mmap_enabled=true属性，以节约内存
         schema.add_field(field_name="id", datatype=DataType.INT64, is_primary=True)
-        dimension = model_info[MODEL_NAME]["vector_dimension"] or 512
+        dimension = common.get_model_dimension()
         schema.add_field(field_name=vector_field_name, datatype=DataType.FLOAT_VECTOR, dim=dimension)
         schema.add_field(field_name="image_path", datatype=DataType.VARCHAR, max_length=512)
-        
+
         # 准备索引参数
         index_params = client.prepare_index_params()
         index_params.add_index(
@@ -126,7 +130,7 @@ def insert_vectors(table_name, vectors, image_paths):
     """
     try:
         client = milvus_client()
-        
+
         # MilvusClient insert 接收 list of dicts
         data = []
         for i in range(len(vectors)):
@@ -134,17 +138,18 @@ def insert_vectors(table_name, vectors, image_paths):
                 vector_field_name: vectors[i],
                 "image_path": image_paths[i]
             })
-        
+
         insert_result = client.insert(collection_name=table_name, data=data)
-        
+
         # 在某些配置下可能需要手动 flush，但 High Level API 通常处理好了，为了保险起见可以保留
         # client.flush(table_name)  # MilvusClient 暂无 flush 方法，通常不需要手动调用
-        
+
         logging.info(f"Successfully inserted {len(vectors)} vectors to collection: {table_name}")
         return insert_result["ids"]
     except Exception as e:
         logging.error(f"Error inserting vectors: {e}")
         raise e
+
 
 def drop_collection(table_name):
     """
@@ -158,6 +163,7 @@ def drop_collection(table_name):
     except Exception as e:
         logging.error(f"Error dropping collection: {e}")
         raise e
+
 
 def clear_collection(table_name):
     """
@@ -173,7 +179,7 @@ def clear_collection(table_name):
         raise e
 
 
-def search_vectors(table_name, vectors, top_k,output_fields,embedding_index_type="IVF_FLAT"):
+def search_vectors(table_name, vectors, top_k, output_fields, embedding_index_type="IVF_FLAT"):
     """
     Search similar vectors in milvus collection
     """
@@ -186,29 +192,30 @@ def search_vectors(table_name, vectors, top_k,output_fields,embedding_index_type
             anns_field=vector_field_name,
             data=vectors,
             limit=top_k,
-            search_params= get_params(embedding_index_type, is_search=True),
+            search_params=get_params(embedding_index_type, is_search=True),
             output_fields=output_fields
         )
-        
+
         # Extract image paths and distances from results
         ids = []
         distances = []
         paths = []
-        
+
         for result in results:
             for hit in result:
                 ids.append(hit["id"])
                 distances.append(hit["distance"])
                 paths.append(hit["entity"].get('image_path'))
-        
+
         logging.info(f"Successfully searched in collection: {table_name}")
         return ids, distances, paths
     except Exception as e:
         logging.error(f"Error searching vectors: {e}")
         raise e
 
+
 # 索引参数
-def get_params(embedding_index_type,is_search=False):
+def get_params(embedding_index_type, is_search=False):
     if is_search:
         return index_params_map[embedding_index_type]["search_params"]
     else:

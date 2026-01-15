@@ -15,6 +15,7 @@ predict_lock = threading.Lock()
 # 全局map
 cache_map = {}
 
+
 def do_train(table_name, data_path, embedding_index_type):
     # 创建线程池
     executor = ThreadPoolExecutor(max_workers=config.MAX_THREADS)
@@ -28,8 +29,8 @@ def do_train(table_name, data_path, embedding_index_type):
             # 创建表
             with predict_lock:
                 index.create_table(table_name or config.DEFAULT_TABLE,
-                             False,
-                             embedding_index_type or config.EMBEDDING_INDEX_TYPE)
+                                   False,
+                                   embedding_index_type or config.EMBEDDING_INDEX_TYPE)
 
         # 先把图片copy到DATA_PATH下的一个当前时间戳的目录下
         timestamp = str(int(round(time.time() * 1000)))
@@ -62,7 +63,7 @@ def do_train(table_name, data_path, embedding_index_type):
                     temp_image_paths = image_paths.copy()
                     # 清空数组
                     image_paths.clear()
-                    future = executor.submit(process_predict_and_insert,temp_image_paths, table_name or DEFAULT_TABLE)
+                    future = executor.submit(process_predict_and_insert, temp_image_paths, table_name or DEFAULT_TABLE)
                     total_indexed += len(temp_image_paths)
                     cache_map.setdefault("total", total_indexed)
                     futures.append(future)
@@ -75,7 +76,7 @@ def do_train(table_name, data_path, embedding_index_type):
             futures.append(future)
         # Wait for all tasks to complete and check for errors
         cache_map.setdefault("total", total_indexed)
-        current=0
+        current = 0
         for future in futures:
             current += future.result()
             cache_map.setdefault("current", current)
@@ -88,8 +89,10 @@ def do_train(table_name, data_path, embedding_index_type):
         logging.error(f"Error in do_train: {e}")
         return str(e)
 
+
 def train_status_cache():
     return cache_map
+
 
 # 提取特征并插入 Milvus
 def process_predict_and_insert(image_paths, table_name):
@@ -97,7 +100,7 @@ def process_predict_and_insert(image_paths, table_name):
     try:
         # 获取特征提取器实例（延迟初始化）
         feature_extractor = get_feature_extractor()
-        
+
         # 使用锁确保同一时刻只有一个线程在使用 GPU 进行预测
         with predict_lock:
             features = feature_extractor.extract_batch_features(image_paths)
@@ -108,4 +111,3 @@ def process_predict_and_insert(image_paths, table_name):
     except Exception as e:
         logging.error(f"Error processing image : {e}")
     return len(features)
-

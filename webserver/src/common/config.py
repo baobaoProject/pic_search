@@ -12,7 +12,10 @@ DATA_PATH = os.getenv("DATA_PATH", "/data/images")
 DEFAULT_TABLE = os.getenv("DEFAULT_TABLE", "milvus")
 UPLOAD_PATH = "/tmp/search-images"
 # 从环境变量获取输入的图片尺寸，默认为 224
-INPUT_SHAPE_SIZE = os.getenv("INPUT_SHAPE_SIZE",224)
+INPUT_SHAPE_SIZE = os.getenv("INPUT_SHAPE_SIZE", 224)
+# 模型语言和模型名称对应关系
+if MODEL_LANGUAGE == "CN" and MODEL_NAME == "CLIP":
+    MODEL_NAME = "ChineseCLIP"
 # 最大线程数
 MAX_THREADS = int(os.getenv("MAX_THREADS", 10))
 # 批量预处理的图片数量

@@ -1,6 +1,7 @@
 import logging
 from common.config import DEFAULT_TABLE
-from  indexer import  index
+from indexer import index
+
 
 def do_delete(table_name):
     """

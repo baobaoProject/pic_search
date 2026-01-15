@@ -2,10 +2,11 @@ import logging
 import numpy as np
 from tensorflow.keras.preprocessing import image
 from tensorflow.keras.applications.efficientnet_v2 import EfficientNetV2S, preprocess_input
-from common.const import image_size,model_info
+from common.const import image_size, model_info
 from common.config import MODEL_NAME
 
 model = None
+
 
 def load_model():
     """Lazy load the EfficientNetV2S model."""
@@ -16,12 +17,13 @@ def load_model():
         # include_top=False: Exclude the classification layer
         # pooling='avg': Global Average Pooling, results in a 1D vector (1280 dimensions)
         model = EfficientNetV2S(
-                weights='imagenet',
-                include_top=False,
-                pooling='avg'
+            weights='imagenet',
+            include_top=False,
+            pooling='avg'
         )
         logging.info("EfficientNetV2S model loaded.")
-    return  model
+    return model
+
 
 class FeatureExtractor:
     def __init__(self):
@@ -40,7 +42,7 @@ class FeatureExtractor:
         """Extract features for a single image."""
         img_tensor = self.preprocess_image(img_path)
         features = load_model().predict(img_tensor)
-        
+
         # Flatten and normalize
         feat = features.flatten()
         norm_feat = feat / np.linalg.norm(feat)
@@ -49,13 +51,13 @@ class FeatureExtractor:
     def extract_batch_features(self, batch_tensors):
         """Extract features for a batch of images."""
         batch_features = load_model().predict(batch_tensors)
-        
+
         normalized_features = []
         for feat in batch_features:
             feat = feat.flatten()
             norm_feat = feat / np.linalg.norm(feat)
             normalized_features.append(norm_feat.tolist())
-            
+
         return normalized_features
 
     # 根据模型名称获取对应模型的向量维度
@@ -66,6 +68,7 @@ class FeatureExtractor:
 # 延迟创建全局实例，避免在主进程中初始化CUDA
 # 这样可以防止Gunicorn fork子进程时出现CUDA重新初始化错误
 feature_extractor = None
+
 
 def get_feature_extractor():
     """获取特征提取器单例，延迟初始化"""
