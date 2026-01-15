@@ -97,6 +97,8 @@ services:
       - MILVUS_HOST=${MILVUS_HOST:-standalone}
       - MILVUS_PORT=19530  # 添加端口配置
       - MODEL_NAME=CLIP # 添加模型名称
+      - MODEL_LANGUAGE=CN # 添加语言类型 CN/EN
+      - DEFAULT_COLLECTION=pic_search # 添加默认集合名称
       - DEFAULT_DATABASE=pic_search # 添加默认数据库名称
       - INPUT_SHAPE_SIZE=224 # 修改输入形状大小
       - MAX_THREADS=5  # 添加线程数配置

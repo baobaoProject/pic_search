@@ -4,3 +4,5 @@
 /images/
 /data/
 /Desktop.ini
+/webserver/models/huggingface/
+/webserver/models/.locks/
