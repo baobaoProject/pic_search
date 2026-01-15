@@ -190,7 +190,8 @@ if __name__ == "__main__":
     # 使用生产级服务器
     options = {
         'bind': '0.0.0.0:5000',
-        'workers': 4,
+        'workers': 1,      # 单进程，确保全局变量共享和显存节省
+        'threads': 4,      # 可选：开启多线程以提高 I/O 并发能力（处理搜索请求时有用）
         'timeout': 120,
     }
     StandaloneApplication(app, options).run()
