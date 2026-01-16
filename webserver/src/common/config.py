@@ -1,7 +1,7 @@
 import os
 
-# 当前使用的模型
-MODEL_NAME = os.getenv("MODEL_NAME", "CLIP")
+# 当前默认使用的中文模型
+MODEL_NAME = os.getenv("MODEL_NAME", "OFA-ChineseCLIP")
 MILVUS_HOST = os.getenv("MILVUS_HOST", "127.0.0.1")
 MILVUS_PORT = os.getenv("MILVUS_PORT", 19530)
 # 支持的语言，默认CN
@@ -13,9 +13,6 @@ DEFAULT_TABLE = os.getenv("DEFAULT_TABLE", "milvus")
 UPLOAD_PATH = "/tmp/search-images"
 # 从环境变量获取输入的图片尺寸，默认为 224
 INPUT_SHAPE_SIZE = os.getenv("INPUT_SHAPE_SIZE", 224)
-# 模型语言和模型名称对应关系
-if MODEL_LANGUAGE == "CN" and MODEL_NAME == "CLIP":
-    MODEL_NAME = "ChineseCLIP"
 # 最大线程数
 MAX_THREADS = int(os.getenv("MAX_THREADS", 10))
 # 批量预处理的图片数量

@@ -1,4 +1,4 @@
-from .config import INPUT_SHAPE_SIZE, N_LIST, SEARCH_N_LIST, MODEL_NAME
+from .config import INPUT_SHAPE_SIZE, N_LIST, SEARCH_N_LIST
 
 # 输入图片的尺寸
 input_shape = (int(INPUT_SHAPE_SIZE), int(INPUT_SHAPE_SIZE), 3)
@@ -16,13 +16,14 @@ model_info = {
     "EfficientNetV2S": {
         "vector_dimension": 1280,
         "input_shape_size": INPUT_SHAPE_SIZE,
+        "model_id": "tensorflow/efficientnet-v2-s"
     },
-    "CLIP": {
+    "OPENAI-CLIP": {
         "vector_dimension": 512,  # OpenAI CLIP ViT-B/32 的默认维度
         "input_shape_size": 224,  # CLIP 默认输入尺寸
         "model_id": "openai/clip-vit-base-patch32"
     },
-    "ChineseCLIP": {
+    "OFA-ChineseCLIP": {
         "vector_dimension": 512,  # ChineseCLIP ViT-B/16 的默认维度
         "input_shape_size": 224,
         "model_id": "OFA-Sys/chinese-clip-vit-base-patch16"
@@ -37,15 +38,15 @@ model_info = {
         "input_shape_size": 224,
         "model_id": "google/siglip-base-patch16-224"
     },
-    "360-CLIP2":{
+    "360-CLIP2": {
         "vector_dimension": 768,  # GoogleSiglip 的默认维度,只支持中文
         "input_shape_size": 224,
         "model_id": "qihoo360/fg-clip2-large"
     },
-    "Qwen-": {
+    "Qwen3-VL": {
         "vector_dimension": 768,
         "input_shape_size": 224,
-        "model_id": "qwen/qwen-plus"
+        "model_id": "Qwen/Qwen3-VL-2B-Instruct"
     }
 }
 

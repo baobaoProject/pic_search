@@ -1,12 +1,12 @@
 import logging
 
 import numpy as np
-from tensorflow.keras.preprocessing import image
 from tensorflow.keras.applications.efficientnet_v2 import EfficientNetV2S, preprocess_input
+from tensorflow.keras.preprocessing import image
 
 import common
 from common.const import image_size
-from model.ModelExtractor import ProxyFeatureExtractor
+from model.ModelExtractor import AbstractFeatureExtractor
 
 
 def preprocess_image(img_path):
@@ -19,10 +19,11 @@ def preprocess_image(img_path):
     return img_tensor
 
 
-class EfficientNetFeatureExtractor(ProxyFeatureExtractor):
+class EfficientNetFeatureExtractor(AbstractFeatureExtractor):
 
     def __init__(self, model_name="EfficientNetV2S"):
-        super().__init__(model_name=model_name, model_id=common.get_model_id(), dimension=common.get_model_dimension(), language=common.get_model_language())
+        super().__init__(model_name=model_name, model_id=common.get_model_id(), dimension=common.get_model_dimension(),
+                         language=common.get_model_language())
 
     def load_model(self):
         """Lazy load the EfficientNetV2S model."""
@@ -31,7 +32,7 @@ class EfficientNetFeatureExtractor(ProxyFeatureExtractor):
             # EfficientNetV2S: Small version, higher accuracy and faster than VGG16
             # include_top=False: Exclude the classification layer
             # pooling='avg': Global Average Pooling, results in a 1D vector (1280 dimensions)
-            self.model = EfficientNetV2S(weights='imagenet',include_top=False,pooling='avg')
+            self.model = EfficientNetV2S(weights='imagenet', include_top=False, pooling='avg')
             logging.info("EfficientNetV2S model loaded.")
         return self.model
 

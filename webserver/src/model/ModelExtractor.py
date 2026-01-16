@@ -1,55 +1,71 @@
 import logging
+import os
 import threading
 from abc import abstractmethod
+from typing import Optional, Union
 
 import torch
+from PIL import Image
 
 import common
 
 # 全局锁，确保 model只加载一次 串行执行，避免 GPU OOM
 predict_lock = threading.Lock()
-feature_extractor_map={}
-# 定义一个get_feature_extractor的接口
-class ProxyFeatureExtractor:
+feature_extractor_map = {}
 
+
+# 抽象特征提取器
+class Extractor:
     """Abstract base class for feature extractors."""
-    def __init__(self, model_name=None,model_id=None,dimension=None,language=None,device=None):
+
+    @abstractmethod
+    def extract_image_features(self, img_path):
+        """Extract features for a single image."""
+        raise NotImplementedError("extract_features method not implemented")
+
+    @abstractmethod
+    def batch_extract_image_features(self, image_paths):
+        """Extract features for a batch of images."""
+        raise NotImplementedError("extract_batch_features method not implemented")
+
+    @abstractmethod
+    def extract_text_features(self, text):
+        """Extract features for a single text."""
+        raise NotImplementedError("extract_features method not implemented")
+
+
+# 定义一个get_feature_extractor的接口
+class AbstractFeatureExtractor(Extractor):
+    """Abstract base class for feature extractors."""
+    cache_dir = "/root/.keras/models/huggingface/hub"
+    model = None
+    processor = None
+    tokenizer = None
+    device = None
+
+    def __init__(self,
+                 model_name: str = None,
+                 model_id: Optional[Union[str, os.PathLike]] = None,
+                 dimension=None,
+                 language: str = None,
+                 device: str = None):
         self.model_name = model_name
-        self.device = device if device is not None  else ("cuda" if torch.cuda.is_available() else "cpu")
+        self.device = device if device is not None else ("cuda" if torch.cuda.is_available() else "cpu")
         self.model_id = model_id
         self.language = language
         self.dimension = dimension
-        self.model = None
+
+        logging.info(f"Loading {model_name} feature extractor...")
         self.load_model()
+        logging.info(f"{model_name} feature extractor loaded successfully.")
 
-        self.processor =None
+        logging.info(f"Loading {model_name} feature extractor processor...")
         self.load_processor()
+        logging.info(f"{model_name} feature extractor processor loaded successfully.")
 
-        self.tokenizer = None
+        logging.info(f"Loading {model_name} feature extractor tokenizer...")
         self.load_tokenizer()
-
-    @classmethod
-    def get_instance(cls, model_name=common.get_model_name()) -> "ProxyFeatureExtractor":
-        global feature_extractor_map
-        """Get a feature extractor instance by model name."""
-        if feature_extractor_map.get(model_name) is not None:
-            return feature_extractor_map.get(model_name)
-        with predict_lock:
-            if feature_extractor_map.get(model_name) is not None:
-                return feature_extractor_map.get(model_name)
-            else:
-                logging.info(f"Initializing {model_name} feature extractor...")
-                if model_name == "CLIP":
-                    from .clip_extractor import ClipFeatureExtractor
-                    feature_extractor_map[model_name] = ClipFeatureExtractor(model_name)
-                    logging.info("Feature extractor initialized. use ClipFeatureExtractor...")
-                elif model_name == "EfficientNet":
-                    from .efficientnet_extractor import EfficientNetFeatureExtractor
-                    feature_extractor_map[model_name] = EfficientNetFeatureExtractor(model_name)
-                    logging.info("Feature extractor initialized. use EfficientNetFeatureExtractor...")
-                else:
-                     raise ValueError("Invalid model name")
-        return feature_extractor_map.get(model_name)
+        logging.info(f"{model_name} feature extractor tokenizer loaded successfully.")
 
     @abstractmethod
     def load_model(self):
@@ -66,17 +82,71 @@ class ProxyFeatureExtractor:
         """Load the feature extractor tokenizer."""
         raise NotImplementedError("load_tokenizer method not implemented")
 
-    @abstractmethod
-    def extract_image_features(self, img_path):
+    def _extract_image_features_(self, img_path):
         """Extract features for a single image."""
-        raise NotImplementedError("extract_features method not implemented")
+        logging.info(f"Extracting features for image: {img_path}")
+        image = Image.open(img_path)
+        try:
+            # 预处理图片
+            inputs = self.processor(images=image, return_tensors="pt").to(self.device)
+            # 推理
+            with torch.no_grad():
+                # 根据模型类型选择对应的方法
+                image_features = self.model.get_image_features(**inputs)
+            # 归一化 (CLIP 的特征通常需要归一化)
+            image_features = image_features / image_features.norm(p=2, dim=-1, keepdim=True)
+            # 转为列表
+            return image_features.cpu().numpy()[0].tolist()
+        except Exception as e:
+            import traceback
+            logging.error(f"Error extracting image features: {e}")
+            logging.error(traceback.format_exc())
+            raise e
+        finally:
+            image.close()
 
-    @abstractmethod
+
+class ProxyFeatureExtractor(Extractor):
+    """A proxy class for feature extractors."""
+
+    def __init__(self, model_name: str = None):
+        self.model_name = model_name
+        self.instance: AbstractFeatureExtractor = ProxyFeatureExtractor.get_instance(model_name)
+
+    def extract_image_features(self, img_path):
+        logging.info(f"Extracting features for image: {img_path}")
+        return self.instance.extract_image_features(img_path)
+
     def batch_extract_image_features(self, image_paths):
-        """Extract features for a batch of images."""
-        raise NotImplementedError("extract_batch_features method not implemented")
+        return self.instance.batch_extract_image_features(image_paths)
 
-    @abstractmethod
     def extract_text_features(self, text):
-        """Extract features for a single text."""
-        raise NotImplementedError("extract_features method not implemented")
+        logging.info(f"Extracting features for text: {text}")
+        return self.instance.extract_text_features(text)
+
+    @classmethod
+    def get_instance(cls, model_name=common.get_model_name()) -> "AbstractFeatureExtractor":
+        global feature_extractor_map
+        """Get a feature extractor instance by model name."""
+        if feature_extractor_map.get(model_name) is not None:
+            return feature_extractor_map.get(model_name)
+        with predict_lock:
+            if feature_extractor_map.get(model_name) is not None:
+                return feature_extractor_map.get(model_name)
+            else:
+                logging.info(f"Initializing {model_name} feature extractor...")
+                if model_name == "OPENAI-CLIP":
+                    from .clip_extractor import OpenAIClipFeatureExtractor
+                    feature_extractor_map[model_name] = OpenAIClipFeatureExtractor(model_name)
+                    logging.info("Feature extractor initialized. use OpenAIClipFeatureExtractor...")
+                elif model_name == "OFA-ChineseCLIP":
+                    from .clip_extractor import OFAChineseClipFeatureExtractor
+                    feature_extractor_map[model_name] = OFAChineseClipFeatureExtractor(model_name)
+                    logging.info("Feature extractor initialized. use OpenAIClipFeatureExtractor...")
+                elif model_name == "EfficientNetV2S":
+                    from .efficientnet_extractor import EfficientNetFeatureExtractor
+                    feature_extractor_map[model_name] = EfficientNetFeatureExtractor(model_name)
+                    logging.info("Feature extractor initialized. use EfficientNetFeatureExtractor...")
+                else:
+                    raise ValueError(f"Invalid model name : {model_name}")
+        return feature_extractor_map.get(model_name)
