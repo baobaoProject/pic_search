@@ -23,3 +23,6 @@ EMBEDDING_INDEX_TYPE = os.getenv("EMBEDDING_INDEX_TYPE", "IVF_FLAT")
 N_LIST = int(os.getenv("N_LIST", 128))
 # 搜索时查询的聚类数量
 SEARCH_N_LIST = int(os.getenv("SEARCH_N_LIST", 32))
+
+# 设置环境变量，使用国内的镜像源
+os.environ["HF_ENDPOINT"] = os.getenv("HF_ENDPOINT", "https://hf-mirror.com")

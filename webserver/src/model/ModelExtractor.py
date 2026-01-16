@@ -51,6 +51,11 @@ class AbstractFeatureExtractor(Extractor):
                  device: str = None):
         self.model_name = model_name
         self.device = device if device is not None else ("cuda" if torch.cuda.is_available() else "cpu")
+        # 模型设备
+        if self.device == "cuda":
+            self.device_map = 0
+        else:
+            self.device_map = "cpu"
         self.model_id = model_id
         self.language = language
         self.dimension = dimension
@@ -142,11 +147,15 @@ class ProxyFeatureExtractor(Extractor):
                 elif model_name == "OFA-ChineseCLIP":
                     from .clip_extractor import OFAChineseClipFeatureExtractor
                     feature_extractor_map[model_name] = OFAChineseClipFeatureExtractor(model_name)
-                    logging.info("Feature extractor initialized. use OpenAIClipFeatureExtractor...")
+                    logging.info("Feature extractor initialized. use OFAChineseClipFeatureExtractor...")
                 elif model_name == "EfficientNetV2S":
                     from .efficientnet_extractor import EfficientNetFeatureExtractor
                     feature_extractor_map[model_name] = EfficientNetFeatureExtractor(model_name)
                     logging.info("Feature extractor initialized. use EfficientNetFeatureExtractor...")
+                elif model_name == "Qwen3-VL":
+                    from .qwen_extractor import QwenFeatureExtractor
+                    feature_extractor_map[model_name] = QwenFeatureExtractor(model_name)
+                    logging.info("Feature extractor initialized. use QwenFeatureExtractor...")
                 else:
                     raise ValueError(f"Invalid model name : {model_name}")
         return feature_extractor_map.get(model_name)
