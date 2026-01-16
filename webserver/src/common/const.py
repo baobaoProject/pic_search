@@ -26,6 +26,26 @@ model_info = {
         "vector_dimension": 512,  # ChineseCLIP ViT-B/16 的默认维度
         "input_shape_size": 224,
         "model_id": "OFA-Sys/chinese-clip-vit-base-patch16"
+    },
+    "JinaCLIP": {
+        "vector_dimension": 768,  # JinaCLIP 的默认维度，支持多国语言
+        "input_shape_size": 224,
+        "model_id": "jinaai/jina-clip-v2"
+    },
+    "GoogleSiglip": {
+        "vector_dimension": 768,  # GoogleSiglip 的默认维度,只支持中文
+        "input_shape_size": 224,
+        "model_id": "google/siglip-base-patch16-224"
+    },
+    "360-CLIP2":{
+        "vector_dimension": 768,  # GoogleSiglip 的默认维度,只支持中文
+        "input_shape_size": 224,
+        "model_id": "qihoo360/fg-clip2-large"
+    },
+    "Qwen-": {
+        "vector_dimension": 768,
+        "input_shape_size": 224,
+        "model_id": "qwen/qwen-plus"
     }
 }
 

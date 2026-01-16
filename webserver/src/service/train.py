@@ -6,9 +6,9 @@ import time
 from concurrent.futures import ThreadPoolExecutor
 
 from common import config
-from common.config import DEFAULT_TABLE
+import  common
 from indexer import index
-from model import get_feature_extractor
+from model import get_feature_extractor,ProxyFeatureExtractor
 
 # 全局锁，确保 model.predict 串行执行，避免 GPU OOM
 predict_lock = threading.Lock()
@@ -23,12 +23,13 @@ def do_train(table_name, data_path, embedding_index_type):
     Train the model by indexing images to Milvus
     """
     cache_map.clear()
+    table_name = table_name or common.get_model_default_table()
     try:
         # Create table if not exists
-        if index.has_collection(table_name or DEFAULT_TABLE) is False:
+        if index.has_collection(table_name) is False:
             # 创建表
             with predict_lock:
-                index.create_table(table_name or config.DEFAULT_TABLE,
+                index.create_table(table_name,
                                    False,
                                    embedding_index_type or config.EMBEDDING_INDEX_TYPE)
 
@@ -63,7 +64,7 @@ def do_train(table_name, data_path, embedding_index_type):
                     temp_image_paths = image_paths.copy()
                     # 清空数组
                     image_paths.clear()
-                    future = executor.submit(process_predict_and_insert, temp_image_paths, table_name or DEFAULT_TABLE)
+                    future = executor.submit(process_predict_and_insert, temp_image_paths, table_name)
                     total_indexed += len(temp_image_paths)
                     cache_map.setdefault("total", total_indexed)
                     futures.append(future)
@@ -71,7 +72,7 @@ def do_train(table_name, data_path, embedding_index_type):
 
         if len(image_paths) > 0:
             # 剩余的图片提取特征
-            future = executor.submit(process_predict_and_insert, image_paths, table_name or DEFAULT_TABLE)
+            future = executor.submit(process_predict_and_insert, image_paths, table_name)
             total_indexed += len(image_paths)
             futures.append(future)
         # Wait for all tasks to complete and check for errors
@@ -103,10 +104,10 @@ def process_predict_and_insert(image_paths, table_name):
 
         # 使用锁确保同一时刻只有一个线程在使用 GPU 进行预测
         with predict_lock:
-            features = feature_extractor.extract_batch_features(image_paths)
+            features = feature_extractor.batch_extract_image_features(image_paths)
 
         # Batch insert
-        index.insert_vectors(table_name or DEFAULT_TABLE, features, image_paths)
+        index.insert_vectors(table_name or common.get_model_default_table(), features, image_paths)
         logging.info(f"Batch insert_vectors {len(image_paths)} images.")
     except Exception as e:
         logging.error(f"Error processing image : {e}")

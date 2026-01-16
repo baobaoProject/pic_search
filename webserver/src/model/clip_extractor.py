@@ -1,73 +1,61 @@
 import logging
-import threading
 
 import torch
 from PIL import Image
-from transformers import CLIPProcessor, CLIPModel, ChineseCLIPModel, ChineseCLIPProcessor, PreTrainedModel, \
-    AutoTokenizer
+from transformers import CLIPProcessor, CLIPModel, ChineseCLIPModel, ChineseCLIPProcessor, AutoTokenizer
 
 import common
+from model.ModelExtractor import ProxyFeatureExtractor
 
-# 全局锁，确保 model只加载一次 串行执行，避免 GPU OOM
-predict_lock = threading.Lock()
 cache_dir = "/root/.keras/models/huggingface/hub"
-# 延迟创建全局实例，避免在主进程中初始化CUDA
-feature_extractor = None
 
+# CLIP 特征提取器
+class ClipFeatureExtractor(ProxyFeatureExtractor):
 
-def load_model_processor(device="cpu", language=common.get_model_language(), model_id=common.get_model_id()):
-    """Lazy load the CLIP model."""
-    # 在这里确定 device，避免在模块导入时初始化 CUDA
-    # 使用 OpenAI 的 CLIP 模型 (ViT-B/32)
-    model = None
-    processor = None
-    tokenizer = None
-    try:
-        if language == "CN":
-            logging.info(f"Loading ChineseCLIPModel on {device}...")
-            model = ChineseCLIPModel.from_pretrained(
-                model_id,
-                cache_dir=cache_dir
-            ).to(device)
-            logging.info("Chinese CLIP model loaded successfully.")
-            logging.info("Loading ChineseCLIP processor...")
-            processor = ChineseCLIPProcessor.from_pretrained(
-                model_id,
-                cache_dir=cache_dir,
-                use_fast=True
-            )
-            logging.info("ChineseCLIP processor loaded successfully.")
-            tokenizer = AutoTokenizer.from_pretrained(model_id)
-        else:
-            logging.info(f"Loading CLIPModel on {device}...")
-            model = CLIPModel.from_pretrained(
-                model_id,
-                cache_dir=cache_dir
-            ).to(device)
-            logging.info("CLIPModel loaded successfully.")
-            logging.info("Loading CLIP processor processor...")
-            processor = CLIPProcessor.from_pretrained(
-                model_id,
-                cache_dir=cache_dir,
-                use_fast=True
-            )
-            logging.info("CLIP processor loaded successfully.")
-            tokenizer = AutoTokenizer.from_pretrained(model_id)
-    except Exception as e:
-        logging.error(f"Failed to load CLIP model: {e}")
-        raise e
-    return model,processor,tokenizer
+    # 构造函数
+    def __init__(self, model_name="CLIP"):
+        super().__init__(model_name=model_name, model_id=common.get_model_id(), dimension=common.get_model_dimension(), language=common.get_model_language())
 
-class FeatureExtractor:
-    def __init__(self, model_name):
-        self.device = "cuda" if torch.cuda.is_available() else "cpu"
-        self.model_name = model_name
-        new_model, new_processor, new_tokenizer = load_model_processor(device=self.device,language=common.get_model_language(),  model_id=common.get_model_id())
-        self.model = new_model
-        self.processor = new_processor
-        self.tokenizer = new_tokenizer
-        # 根据模型类型动态获取维度
-        self.dimension = common.get_model_dimension()
+    # 加载模型
+    def load_model(self):
+        try:
+            if self.language == "CN":
+                logging.info(f"Loading ChineseCLIPModel on {self.device}...")
+                self.model = ChineseCLIPModel.from_pretrained(self.model_id,cache_dir=cache_dir).to(self.device)
+                logging.info("Chinese CLIP model loaded successfully.")
+            else:
+                logging.info(f"Loading CLIPModel on {self.device}...")
+                self.model = CLIPModel.from_pretrained(self.model_id,cache_dir=cache_dir).to(self.device)
+                logging.info("CLIPModel loaded successfully.")
+        except Exception as e:
+            logging.error(f"Failed to load CLIP model: {e}")
+            raise e
+        return self.model
+
+    # 加载处理器
+    def load_processor(self):
+        try:
+            if self.language == "CN":
+                logging.info("Loading ChineseCLIP processor...")
+                self.processor = ChineseCLIPProcessor.from_pretrained(self.model_id, cache_dir=cache_dir, use_fast=True)
+                logging.info("ChineseCLIP processor loaded successfully.")
+            else:
+                logging.info("Loading CLIP processor processor...")
+                self.processor = CLIPProcessor.from_pretrained(self.model_id, cache_dir=cache_dir, use_fast=True)
+                logging.info("CLIP processor loaded successfully.")
+        except Exception as e:
+            logging.error(f"Failed to load CLIP model: {e}")
+            raise e
+        return  self.processor
+
+    # 加载tokenizer
+    def load_tokenizer(self):
+        try:
+            self.tokenizer = AutoTokenizer.from_pretrained(self.model_id)
+        except Exception as e:
+            logging.error(f"Failed to load CLIP model: {e}")
+            raise e
+        return  self.tokenizer
 
     def extract_image_features(self, img_path):
         """Extract features for a single image."""
@@ -126,7 +114,7 @@ class FeatureExtractor:
             logging.error(traceback.format_exc())
             raise ValueError("Processor failed to process text")
 
-    def extract_batch_features(self, image_paths):
+    def batch_extract_image_features(self, image_paths):
         """Extract features for a batch of images."""
         logging.info(f"Extracting features for {len(image_paths)} images.")
         features = []
@@ -138,18 +126,3 @@ class FeatureExtractor:
                 # 使用全0向量占位或跳过，这里选择抛出异常让上层处理
                 raise inner_e
         return features
-
-
-# 特征提取器单例
-def clip_feature_extractor():
-    """获取特征提取器单例，延迟初始化"""
-    global feature_extractor
-    if feature_extractor is not None:
-        return feature_extractor
-    with predict_lock:
-        if feature_extractor is not None:
-            return feature_extractor
-        logging.info("Initializing feature extractor...")
-        feature_extractor = FeatureExtractor(model_name=common.get_model_name())
-        logging.info("Feature extractor initialized.")
-    return feature_extractor

@@ -74,7 +74,7 @@ def count_rows(table_name=DEFAULT_TABLE):
 # 内存优化: IVF_PQ > IVF_SQ8 > IVF_FLAT > IVF_FLAT > FLAT
 # 大数据集: DISKANN > HNSW > IVF_PQ
 # GPU可用: GPU_IVF_FLAT 或 GPU_IVF_PQ
-def create_table(table_name=DEFAULT_TABLE, delete_if_exists=False, embedding_index_type="IVF_FLAT"):
+def create_table(table_name=common.get_model_default_table(), delete_if_exists=False, embedding_index_type="IVF_FLAT"):
     """
     Create a new collection with the specified name
     """

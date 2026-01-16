@@ -21,3 +21,8 @@ def get_model_id():
 # 获取模型的语言
 def get_model_language():
     return MODEL_LANGUAGE
+
+# 获取模型默认的表
+def get_model_default_table():
+    """获取默认的表名"""
+    return DEFAULT_TABLE
