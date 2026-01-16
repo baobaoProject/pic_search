@@ -23,7 +23,7 @@ model_info = {
         "model_id": "openai/clip-vit-base-patch32"
     },
     "ChineseCLIP": {
-        "vector_dimension": 768,  # ChineseCLIP ViT-B/16 的默认维度
+        "vector_dimension": 512,  # ChineseCLIP ViT-B/16 的默认维度
         "input_shape_size": 224,
         "model_id": "OFA-Sys/chinese-clip-vit-base-patch16"
     }
