@@ -16,7 +16,6 @@ from service.delete import do_delete
 from service.search import do_search, do_text_search
 from service.train import do_train, train_status_cache
 from indexer.index import milvus_client
-import model
 import gunicorn.app.base
 
 # 设置多进程的启动方式为spawn，解决CUDA在子进程中的初始化问题

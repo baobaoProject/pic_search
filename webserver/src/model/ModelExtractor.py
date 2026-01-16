@@ -38,7 +38,7 @@ class ProxyFeatureExtractor:
             if feature_extractor_map.get(model_name) is not None:
                 return feature_extractor_map.get(model_name)
             else:
-                logging.info("Initializing {} feature extractor...",model_name)
+                logging.info(f"Initializing {model_name} feature extractor...")
                 if model_name == "CLIP":
                     from .clip_extractor import ClipFeatureExtractor
                     feature_extractor_map[model_name] = ClipFeatureExtractor(model_name)
