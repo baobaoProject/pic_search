@@ -40,7 +40,7 @@ model_info = {
     },
     "Qihoo-CLIP2": {
         "vector_dimension": 1024,  # Qihoo 的默认维度,只支持中文
-        "input_shape_size": 224,
+        "input_shape_size": INPUT_SHAPE_SIZE,
         "model_id": "qihoo360/fg-clip2-large"
     },
     "Qwen3-VL": {

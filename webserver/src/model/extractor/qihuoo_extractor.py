@@ -51,18 +51,3 @@ class QihooFeatureExtractor(AbstractFeatureExtractor):
             logging.error(f"Error extracting text features: {e}")
             logging.error(traceback.format_exc())
             raise ValueError("Processor failed to process text")
-
-
-def determine_max_value(image):
-    w, h = image.size
-    max_val = (w // 16) * (h // 16)
-    if max_val > 784:
-        return 1024
-    elif max_val > 576:
-        return 784
-    elif max_val > 256:
-        return 576
-    elif max_val > 128:
-        return 256
-    else:
-        return 128

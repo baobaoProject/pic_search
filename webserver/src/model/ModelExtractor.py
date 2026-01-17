@@ -59,6 +59,8 @@ class AbstractFeatureExtractor(Extractor):
         self.model_id = model_id
         self.language = language
         self.dimension = dimension
+        # 图片尺寸,定义图像的尺寸
+        self.input_shape_size = common.get_image_shape()
 
         logging.info(f"Loading {model_name} feature extractor...")
         self.load_model()
@@ -93,7 +95,8 @@ class AbstractFeatureExtractor(Extractor):
         image = Image.open(img_path)
         try:
             # 预处理图片
-            inputs = self.processor(images=image, return_tensors="pt").to(self.device)
+            inputs = self.processor(images=image, max_num_patches=determine_max_value(image), return_tensors="pt").to(
+                self.device)
             # 推理
             with torch.no_grad():
                 # 根据模型类型选择对应的方法
@@ -154,29 +157,44 @@ class ProxyFeatureExtractor(Extractor):
             else:
                 logging.info(f"Initializing {model_name} feature extractor...")
                 if model_name == "OPENAI-CLIP":
-                    from .clip_extractor import OpenAIClipFeatureExtractor
+                    from model.extractor.clip_extractor import OpenAIClipFeatureExtractor
                     feature_extractor_map[model_name] = OpenAIClipFeatureExtractor(model_name)
                     logging.info("Feature extractor initialized. use OpenAIClipFeatureExtractor...")
                 elif model_name == "OFA-ChineseCLIP":
-                    from .clip_extractor import OFAChineseClipFeatureExtractor
+                    from model.extractor.clip_extractor import OFAChineseClipFeatureExtractor
                     feature_extractor_map[model_name] = OFAChineseClipFeatureExtractor(model_name)
                     logging.info("Feature extractor initialized. use OFAChineseClipFeatureExtractor...")
                 elif model_name == "EfficientNetV2S":
-                    from .efficientnet_extractor import EfficientNetFeatureExtractor
+                    from model.extractor.efficientnet_extractor import EfficientNetFeatureExtractor
                     feature_extractor_map[model_name] = EfficientNetFeatureExtractor(model_name)
                     logging.info("Feature extractor initialized. use EfficientNetFeatureExtractor...")
                 elif model_name == "Jinaai-CLIP":
-                    from .jinaai_extractor import JinaaiFeatureExtractor
+                    from model.extractor.jinaai_extractor import JinaaiFeatureExtractor
                     feature_extractor_map[model_name] = JinaaiFeatureExtractor(model_name)
                     logging.info("Feature extractor initialized. use EfficientNetFeatureExtractor...")
                 elif model_name == "Qwen3-VL":
-                    from .qwen_extractor import QwenFeatureExtractor
+                    from model.extractor.qwen_extractor import QwenFeatureExtractor
                     feature_extractor_map[model_name] = QwenFeatureExtractor(model_name)
                     logging.info("Feature extractor initialized. use QwenFeatureExtractor...")
                 elif model_name == "Qihoo-CLIP2":
-                    from .qihuoo_extractor import QihooFeatureExtractor
+                    from model.extractor.qihuoo_extractor import QihooFeatureExtractor
                     feature_extractor_map[model_name] = QihooFeatureExtractor(model_name)
                     logging.info("Feature extractor initialized. use QihooFeatureExtractor...")
                 else:
                     raise ValueError(f"Invalid model name : {model_name}")
         return feature_extractor_map.get(model_name)
+
+
+def determine_max_value(image):
+    w, h = image.size
+    max_val = (w // 16) * (h // 16)
+    if max_val > 784:
+        return 1024
+    elif max_val > 576:
+        return 784
+    elif max_val > 256:
+        return 576
+    elif max_val > 128:
+        return 256
+    else:
+        return 128
