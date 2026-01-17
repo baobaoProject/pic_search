@@ -155,28 +155,29 @@ class ProxyFeatureExtractor(Extractor):
             if feature_extractor_map.get(model_name) is not None:
                 return feature_extractor_map.get(model_name)
             else:
+                model_type = common.get_model_type(model_name).lower()
                 logging.info(f"Initializing {model_name} feature extractor...")
-                if model_name == "OPENAI-CLIP":
+                if model_type == "openai":
                     from model.extractor.clip_extractor import OpenAIClipFeatureExtractor
                     feature_extractor_map[model_name] = OpenAIClipFeatureExtractor(model_name)
                     logging.info("Feature extractor initialized. use OpenAIClipFeatureExtractor...")
-                elif model_name == "OFA-ChineseCLIP":
+                elif model_type == "ofa-sys":
                     from model.extractor.clip_extractor import OFAChineseClipFeatureExtractor
                     feature_extractor_map[model_name] = OFAChineseClipFeatureExtractor(model_name)
                     logging.info("Feature extractor initialized. use OFAChineseClipFeatureExtractor...")
-                elif model_name == "EfficientNetV2S":
+                elif model_type == "efficientnet":
                     from model.extractor.efficientnet_extractor import EfficientNetFeatureExtractor
                     feature_extractor_map[model_name] = EfficientNetFeatureExtractor(model_name)
                     logging.info("Feature extractor initialized. use EfficientNetFeatureExtractor...")
-                elif model_name == "Jinaai-CLIP":
+                elif model_type == "jinaai":
                     from model.extractor.jinaai_extractor import JinaaiFeatureExtractor
                     feature_extractor_map[model_name] = JinaaiFeatureExtractor(model_name)
                     logging.info("Feature extractor initialized. use EfficientNetFeatureExtractor...")
-                elif model_name == "Qwen3-VL":
+                elif model_type == "qwen":
                     from model.extractor.qwen_extractor import QwenFeatureExtractor
                     feature_extractor_map[model_name] = QwenFeatureExtractor(model_name)
                     logging.info("Feature extractor initialized. use QwenFeatureExtractor...")
-                elif model_name == "Qihoo-CLIP2":
+                elif model_type == "qihoo360":
                     from model.extractor.qihuoo_extractor import QihooFeatureExtractor
                     feature_extractor_map[model_name] = QihooFeatureExtractor(model_name)
                     logging.info("Feature extractor initialized. use QihooFeatureExtractor...")

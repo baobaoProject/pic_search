@@ -9,20 +9,20 @@ def get_model_name():
 
 
 # 获取向量维度
-def get_model_dimension():
+def get_model_dimension(model_name=MODEL_NAME):
     """根据模型类型获取向量维度"""
-    return model_info[MODEL_NAME]["vector_dimension"] or 512
+    return model_info[model_name]["vector_dimension"] or 512
 
 
 # 获取模型id
-def get_model_id():
+def get_model_id(model_name=MODEL_NAME):
     """根据模型类型获取模型id"""
-    return model_info[MODEL_NAME]["model_id"] or ""
+    return model_info[model_name]["model_id"] or ""
 
 
 # 获取图片尺寸
-def get_image_shape():
-    return model_info[MODEL_NAME]["input_shape_size"] or INPUT_SHAPE_SIZE
+def get_image_shape(model_name=MODEL_NAME):
+    return model_info[model_name]["input_shape_size"] or INPUT_SHAPE_SIZE
 
 
 # 获取模型的语言
@@ -34,3 +34,8 @@ def get_model_language():
 def get_model_default_table():
     """获取默认的表名"""
     return DEFAULT_TABLE
+
+
+# 获取模型类型
+def get_model_type(model_name=MODEL_NAME):
+    return model_info[model_name]["type"] or "ofa-sys"

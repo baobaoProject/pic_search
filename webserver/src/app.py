@@ -1,22 +1,21 @@
 import logging
+import multiprocessing
 import os
 import os.path as path
-import shutil
-import multiprocessing
 
-from flask import Flask, request, send_file, jsonify
+import gunicorn.app.base
+from flask import Flask, jsonify, request, send_file
 from flask_cors import CORS
 from flask_restful import reqparse
 from werkzeug.utils import secure_filename
 
-from common.config import DATA_PATH, DEFAULT_TABLE
-from common.config import UPLOAD_PATH
+import utils
+from common.config import DATA_PATH, DEFAULT_TABLE, UPLOAD_PATH
+from indexer.index import milvus_client
 from service.count import do_count
 from service.delete import do_delete
 from service.search import do_search, do_text_search
 from service.train import do_train, train_status_cache
-from indexer.index import milvus_client
-import gunicorn.app.base
 
 # 设置多进程的启动方式为spawn，解决CUDA在子进程中的初始化问题
 # 在模块级别设置，确保在任何子进程创建之前就完成设置
@@ -25,7 +24,6 @@ try:
 except RuntimeError:
     # 如果已经设置过，会抛出RuntimeError，忽略它
     pass
-
 app = Flask(__name__)
 ALLOWED_EXTENSIONS = set(['jpg', 'png', 'jpeg', "gif", "bmp"])
 app.config['UPLOAD_FOLDER'] = UPLOAD_PATH
@@ -62,8 +60,11 @@ def do_delete_api():
     print("delete table.")
     status = do_delete(table_name)
     try:
-        shutil.rmtree(DATA_PATH)
-        shutil.rmtree(app.config['UPLOAD_FOLDER'])
+        # 删除DATA_PATH下所有文件，而不删除DATA_PATH
+        utils.clear_directory_contents(DATA_PATH)
+        logging.info(f"success clear {DATA_PATH} data.")
+        utils.clear_directory_contents(app.config['UPLOAD_FOLDER'])
+        logging.info(f"success clear {app.config['UPLOAD_FOLDER']} data.")
     except:
         print("cannot remove", DATA_PATH)
     return "{}".format(status)
@@ -172,6 +173,11 @@ def before_request():
     # 在每个请求之前建立Milvus连接
     # Establish connection to Milvus
     milvus_client()
+    logging.info("Milvus client connection established.")
+    import model
+    logging.info("Model extractor  loading...")
+    model.get_feature_extractor()
+    logging.info("Model extractor connection established.")
 
 
 class StandaloneApplication(gunicorn.app.base.BaseApplication):

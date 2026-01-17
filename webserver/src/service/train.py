@@ -1,14 +1,14 @@
+import hashlib
 import logging
 import os
 import shutil
 import threading
-import time
 from concurrent.futures import ThreadPoolExecutor
 
+import common
 from common import config
-import  common
 from indexer import index
-from model import get_feature_extractor,ProxyFeatureExtractor
+from model import get_feature_extractor
 
 # 全局锁，确保 model.predict 串行执行，避免 GPU OOM
 predict_lock = threading.Lock()
@@ -16,7 +16,7 @@ predict_lock = threading.Lock()
 cache_map = {}
 
 
-def do_train(table_name, data_path, embedding_index_type):
+def do_train(table_name, data_path: str, embedding_index_type):
     # 创建线程池
     executor = ThreadPoolExecutor(max_workers=config.MAX_THREADS)
     """
@@ -33,9 +33,11 @@ def do_train(table_name, data_path, embedding_index_type):
                                    False,
                                    embedding_index_type or config.EMBEDDING_INDEX_TYPE)
 
-        # 先把图片copy到DATA_PATH下的一个当前时间戳的目录下
-        timestamp = str(int(round(time.time() * 1000)))
-        DATA_PATH_SUBDIR = os.path.join(config.DATA_PATH, timestamp)
+        # data_path去空格
+        data_path = os.path.normpath(data_path.strip())
+        # 计算data_path的md5值并取前10位
+        data_path_md5 = hashlib.md5(data_path.encode('utf-8')).hexdigest()[:10]
+        DATA_PATH_SUBDIR = os.path.join(config.DATA_PATH, data_path_md5)
         if not os.path.exists(DATA_PATH_SUBDIR):
             # 创建目录，如果不存在
             os.makedirs(DATA_PATH_SUBDIR, exist_ok=True)
@@ -52,11 +54,15 @@ def do_train(table_name, data_path, embedding_index_type):
                     continue
                 # 复制图片
                 img_path = str(os.path.join(root, file))
+                # 构建图片的绝对路径
+                new_img_path = os.path.join(DATA_PATH_SUBDIR, file)
+                # 判断文件是否存在
+                if os.path.exists(new_img_path):
+                    logging.info(f"Image {new_img_path} already exists,skipping.")
+                    continue
                 shutil.copy(img_path, DATA_PATH_SUBDIR)
                 # 构建图片的绝对路径
-                img_path = os.path.join(DATA_PATH_SUBDIR, file)
-                # 构建图片的绝对路径
-                image_paths.append(img_path)
+                image_paths.append(new_img_path)
 
                 # 批量提取特征
                 if len(image_paths) >= config.BATCH_SIZE:
@@ -68,7 +74,8 @@ def do_train(table_name, data_path, embedding_index_type):
                     total_indexed += len(temp_image_paths)
                     cache_map.setdefault("total", total_indexed)
                     futures.append(future)
-                    logging.info(f"Batch submitted {len(temp_image_paths)} images.")
+                    logging.info(
+                        f"Batch submitted total {total_indexed} images,current {len(temp_image_paths)} images.")
 
         if len(image_paths) > 0:
             # 剩余的图片提取特征
@@ -103,12 +110,13 @@ def process_predict_and_insert(image_paths, table_name):
         feature_extractor = get_feature_extractor()
 
         # 使用锁确保同一时刻只有一个线程在使用 GPU 进行预测
-        with predict_lock:
-            features = feature_extractor.batch_extract_image_features(image_paths)
+        # with predict_lock:
+        features = feature_extractor.batch_extract_image_features(image_paths)
 
         # Batch insert
         index.insert_vectors(table_name or common.get_model_default_table(), features, image_paths)
         logging.info(f"Batch insert_vectors {len(image_paths)} images.")
+        return len(features)
     except Exception as e:
         logging.error(f"Error processing image : {e}")
-    return len(features)
+        return 0
