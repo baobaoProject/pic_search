@@ -110,6 +110,19 @@ class AbstractFeatureExtractor(Extractor):
         finally:
             image.close()
 
+    def batch_extract_image_features(self, image_paths):
+        """Extract features for a batch of images."""
+        logging.info(f"Extracting features for {len(image_paths)} images.")
+        features = []
+        for path in image_paths:
+            try:
+                features.append(self.extract_image_features(path))
+            except Exception as inner_e:
+                logging.error(f"Failed to process {path}: {inner_e}")
+                # 使用全0向量占位或跳过，这里选择抛出异常让上层处理
+                raise inner_e
+        return features
+
 
 class ProxyFeatureExtractor(Extractor):
     """A proxy class for feature extractors."""
@@ -152,10 +165,18 @@ class ProxyFeatureExtractor(Extractor):
                     from .efficientnet_extractor import EfficientNetFeatureExtractor
                     feature_extractor_map[model_name] = EfficientNetFeatureExtractor(model_name)
                     logging.info("Feature extractor initialized. use EfficientNetFeatureExtractor...")
+                elif model_name == "Jinaai-CLIP":
+                    from .jinaai_extractor import JinaaiFeatureExtractor
+                    feature_extractor_map[model_name] = JinaaiFeatureExtractor(model_name)
+                    logging.info("Feature extractor initialized. use EfficientNetFeatureExtractor...")
                 elif model_name == "Qwen3-VL":
                     from .qwen_extractor import QwenFeatureExtractor
                     feature_extractor_map[model_name] = QwenFeatureExtractor(model_name)
                     logging.info("Feature extractor initialized. use QwenFeatureExtractor...")
+                elif model_name == "Qihoo-CLIP2":
+                    from .qihuoo_extractor import QihooFeatureExtractor
+                    feature_extractor_map[model_name] = QihooFeatureExtractor(model_name)
+                    logging.info("Feature extractor initialized. use QihooFeatureExtractor...")
                 else:
                     raise ValueError(f"Invalid model name : {model_name}")
         return feature_extractor_map.get(model_name)

@@ -38,7 +38,7 @@ services:
 
   standalone:
     container_name: milvus-standalone
-    image: milvusdb/milvus:v2.6.8-gpu
+    image: milvusdb/milvus:v2.6.8
     command: [ "milvus", "run", "standalone" ]
     security_opt:
       - seccomp:unconfined
@@ -96,7 +96,7 @@ services:
       - DATA_PATH=/data/images
       - MILVUS_HOST=${MILVUS_HOST:-standalone}
       - MILVUS_PORT=19530  # 添加端口配置
-      - MODEL_NAME=Qwen3-VL # 添加模型名称
+      - MODEL_NAME=Qihoo-CLIP2 # 添加模型名称
       - DEFAULT_COLLECTION=pic_search # 添加默认集合名称
       - DEFAULT_DATABASE=pic_search # 添加默认数据库名称
       - INPUT_SHAPE_SIZE=224 # 修改输入形状大小
@@ -120,7 +120,7 @@ services:
 
   pic-search-webclient:
     container_name: pic-search-webclient
-    image: milvusbootcamp/pic-search-webclient:2.0
+    image: milvusbootcamp/pic-search-webclient:2.1
     volumes:
       - ./images:/temp/images # 添加图片数据路径
     environment:

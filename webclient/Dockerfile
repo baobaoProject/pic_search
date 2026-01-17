@@ -35,4 +35,4 @@ RUN sed -i 's/\r$//' env.sh
 CMD ["/bin/bash", "-c", "/usr/share/nginx/html/env.sh && nginx -g \"daemon off;\""]
 
 
-# docker build   -t  milvusbootcamp/pic-search-webclient:2.0  .
+# docker build   -t  milvusbootcamp/pic-search-webclient:2.1  .

@@ -25,4 +25,4 @@ N_LIST = int(os.getenv("N_LIST", 128))
 SEARCH_N_LIST = int(os.getenv("SEARCH_N_LIST", 32))
 
 # 设置环境变量，使用国内的镜像源
-os.environ["HF_ENDPOINT"] = os.getenv("HF_ENDPOINT", "https://hf-mirror.com")
+# os.environ["HF_ENDPOINT"] = os.getenv("HF_ENDPOINT", "https://hf-mirror.com")

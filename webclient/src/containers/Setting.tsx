@@ -152,11 +152,12 @@ const Setting = (props: any) => {
       },
     });
   });
-  const { process, train, count, search, clearAll } = useContext(queryContext);
+  const { process, train, count, search,textSearch, clearAll } = useContext(queryContext);
   const { setImages, loading, setLoading } = props;
   const classes = useStyles({});
   const [inputs, setInputs]: any = useState("");
   const [topK, setTopK]: any = useState(5);
+    const [text, setTextInputs]: any = useState("");
   const [totalNum, setTotalNum]: any = useState(0);
   const [[current, total], setProcessedNum]: any = useState([0, 0]);
   const [image, setImage]: any = useState();
@@ -218,6 +219,11 @@ const Setting = (props: any) => {
     setInputs(val);
   };
 
+  const onInputTextChange = (e: any) => {
+    const val = e.target.value;
+    setTextInputs(val);
+  };
+
   const onTopKChange = (e: any, val: any) => {
     setTopK(val);
     if (val && image) {
@@ -256,6 +262,16 @@ const Setting = (props: any) => {
           setInputs("");
           _keepProcess();
         }, 1000);
+      }
+    });
+  };
+
+
+  const text_search = () => {
+    textSearch({ Text: text,Num: topK }).then((res: any) => {
+      const { status, data } = res || {};
+      if (status === 200) {
+        setImages(data);
       }
     });
   };
@@ -299,7 +315,7 @@ const Setting = (props: any) => {
           <p style={{ color: loading ? baseColor : "#fff" }}>{setText}</p>
           <h3 className={classes.currTotal}>{`${current}/${total}`}</h3>
         </div>
-        <div className={classes.setPath}>
+              <div className={classes.setPath}>
           <TextField
             classes={{ root: classes.customInput }}
             label=""
@@ -356,6 +372,46 @@ const Setting = (props: any) => {
           }}
         />
       </div>
+              <div className={classes.setPath}>
+          <TextField
+            classes={{ root: classes.customInput }}
+            label=""
+            variant="outlined"
+            value={text}
+            onChange={onInputTextChange}
+            InputLabelProps={{
+              shrink: true,
+              classes: {
+                root: classes.controlLabel,
+                focused: classes.controlLabel,
+              },
+            }}
+            margin="normal"
+            InputProps={{
+              style: {
+                textAlign: "left",
+                width: isMobile ? "100%" : "340px",
+                height: "40px",
+              },
+              classes: {
+                notchedOutline: classes.notchedOutline,
+                root: classes.formLabel,
+              },
+              placeholder: "your search text",
+            }}
+          />
+          <Fab
+            classes={{
+              root: classes.customFab,
+              focusVisible: classes.customFab,
+            }}
+          >
+            <AddIcon
+              onClick={text_search}
+              classes={{ root: classes.customIcon }}
+            />
+          </Fab>
+        </div>
       <SeperatLine title={`ORIGINAL IMAGE`} style={{ marginBottom: "50px" }} />
       <div className={classes.upload}>
         {image ? (

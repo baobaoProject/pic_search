@@ -43,16 +43,10 @@ class QwenFeatureExtractor(AbstractFeatureExtractor):
                     ]
                 }
             ]
-
             # 应用聊天模板
             text = self.processor.apply_chat_template(messages, tokenize=False)
-
             # 处理图像和文本输入
-            inputs = self.processor(
-                text=text,
-                images=[image],
-                return_tensors="pt"
-            )
+            inputs = self.processor(text=text, images=[image], return_tensors="pt")
 
             # 将输入移到与模型相同的设备上
             inputs = {k: v.to(self.model.device) for k, v in inputs.items()}
@@ -82,7 +76,7 @@ class QwenFeatureExtractor(AbstractFeatureExtractor):
                         image_features = image_features[:, :self.dimension]
                 else:
                     # 如果无法获取合适的特征，创建一个符合维度要求的张量
-                    image_features = torch.randn(1, self.dimension, device=self.model.device)
+                    image_features = torch.randn(1, self.dimension, device=self.device)
 
                 # 归一化特征
                 image_features = image_features / image_features.norm(p=2, dim=-1, keepdim=True)

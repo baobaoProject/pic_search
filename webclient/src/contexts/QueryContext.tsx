@@ -68,6 +68,10 @@ const QueryProvider: FC<{ children: ReactNode }> = ({ children }: { children: Re
     const url = URL.Search;
     return await axiosInstance.post(url, params).catch(errorParser);
   };
+  const textSearch = async (params: any) => {
+    const url = URL.TextSearch;
+    return await axiosInstance.post(url, params).catch(errorParser);
+  };
   const clearAll = async () => {
     const url = URL.ClearAll;
      // 确保参数以正确的格式发送
@@ -81,6 +85,7 @@ const QueryProvider: FC<{ children: ReactNode }> = ({ children }: { children: Re
         process,
         count,
         search,
+        textSearch,
         clearAll,
         train
       }}

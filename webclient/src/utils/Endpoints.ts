@@ -13,6 +13,7 @@ export const Processing = `${endpoint}/api/v1/process`;
 export const Count = `${endpoint}/api/v1/count`;
 export const ClearAll = `${endpoint}/api/v1/delete`;
 export const Search = `${endpoint}/api/v1/search`;
+export const TextSearch = `${endpoint}/api/v1/text_search`;
 
 export const PATH_IMAGE = `${endpoint}/home/zilliz_support/workspace/lcl/milvus_demo/web_test/pic1`;
 export const PATH_IMAGE2 = `${endpoint}/home/zilliz_support/workspace/lcl/milvus_demo/web_test/pic2`;

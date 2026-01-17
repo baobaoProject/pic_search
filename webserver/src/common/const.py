@@ -38,8 +38,8 @@ model_info = {
         "input_shape_size": 224,
         "model_id": "google/siglip-base-patch16-224"
     },
-    "360-CLIP2": {
-        "vector_dimension": 768,  # GoogleSiglip 的默认维度,只支持中文
+    "Qihoo-CLIP2": {
+        "vector_dimension": 1024,  # Qihoo 的默认维度,只支持中文
         "input_shape_size": 224,
         "model_id": "qihoo360/fg-clip2-large"
     },
