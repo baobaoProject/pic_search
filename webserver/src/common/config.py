@@ -1,7 +1,7 @@
 import os
 
 # 当前默认使用的中文模型
-MODEL_NAME = os.getenv("MODEL_NAME", "JinaCLIP")
+MODEL_NAME = os.getenv("MODEL_NAME", "OFA-ChineseCLIP")
 # 设备类型cpu/gpu
 DEVICE = os.getenv("DEVICE", "cuda")
 MILVUS_HOST = os.getenv("MILVUS_HOST", "127.0.0.1")

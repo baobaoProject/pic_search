@@ -3,6 +3,7 @@ import logging
 import os
 import shutil
 import threading
+import time
 from concurrent.futures import ThreadPoolExecutor
 
 import common
@@ -17,13 +18,14 @@ cache_map = {}
 
 
 def do_train(table_name, data_path: str, embedding_index_type):
-    # 创建线程池
-    executor = ThreadPoolExecutor(max_workers=config.MAX_THREADS)
     """
     Train the model by indexing images to Milvus
     """
     cache_map.clear()
     table_name = table_name or common.get_model_default_table()
+
+    # 创建线程池
+    executor = ThreadPoolExecutor(max_workers=config.MAX_THREADS)
     try:
         # Create table if not exists
         if index.has_collection(table_name) is False:
@@ -42,65 +44,79 @@ def do_train(table_name, data_path: str, embedding_index_type):
             # 创建目录，如果不存在
             os.makedirs(DATA_PATH_SUBDIR, exist_ok=True)
 
-        # Extract features for all images
-        image_paths = []
+        # 流式处理：逐个处理图片，按批次提交任务
+        batch_paths = []
         futures = []
         total_indexed = 0
-        # Get all image files from data path
+
+        # 遍历图片文件并立即处理
         for root, dirs, files in os.walk(data_path):
             for file in files:
                 if not file.lower().endswith(('.png', '.jpg', '.jpeg', '.gif', '.bmp')):
                     # 跳过非图片文件
                     continue
+
                 # 复制图片
                 img_path = str(os.path.join(root, file))
-                # 构建图片的绝对路径
+                # 构建图片的目标路径
                 new_img_path = os.path.join(DATA_PATH_SUBDIR, file)
                 # 判断文件是否存在
                 if os.path.exists(new_img_path):
-                    logging.info(f"Image {new_img_path} already exists,skipping.")
+                    logging.info(f"Image {new_img_path} already exists, skipping.")
                     continue
                 shutil.copy2(img_path, DATA_PATH_SUBDIR)
-                # 构建图片的绝对路径
-                image_paths.append(new_img_path)
+                # 添加到当前批次
+                batch_paths.append(new_img_path)
 
-                # 批量提取特征
-                if len(image_paths) >= config.BATCH_SIZE:
-                    # 复制数组
-                    temp_image_paths = image_paths.copy()
-                    # 清空数组
-                    image_paths.clear()
-                    future = executor.submit(process_predict_and_insert, temp_image_paths, table_name)
-                    total_indexed += len(temp_image_paths)
-                    cache_map.setdefault("total", total_indexed)
+                # 当批次达到指定大小时提交任务
+                if len(batch_paths) >= config.BATCH_SIZE:
+                    # 等待线程池有空闲容量
+                    while len([f for f in futures if not f.done()]) >= config.MAX_THREADS * 10:
+                        time.sleep(0.5)  # 短暂休眠，避免忙等待
+
+                    # 提交当前批次的任务
+                    future = executor.submit(process_predict_and_insert, batch_paths.copy(), table_name)
                     futures.append(future)
-                    logging.info(
-                        f"Batch submitted total {total_indexed} images,current {len(temp_image_paths)} images.")
+                    total_indexed += len(batch_paths)
+                    cache_map.setdefault("total", total_indexed)
 
-        if len(image_paths) > 0:
-            # 剩余的图片提取特征
-            future = executor.submit(process_predict_and_insert, image_paths, table_name)
-            total_indexed += len(image_paths)
+                    logging.info(
+                        f"Batch submitted total {total_indexed} images, current batch: {len(batch_paths)} images.")
+
+                    # 清空当前批次
+                    batch_paths.clear()
+
+        # 处理最后一个不满批次的任务
+        if len(batch_paths) > 0:
+            # 等待线程池有空闲容量
+            while len([f for f in futures if not f.done()]) >= config.MAX_THREADS:
+                time.sleep(0.5)
+
+            future = executor.submit(process_predict_and_insert, batch_paths, table_name)
             futures.append(future)
-        # Wait for all tasks to complete and check for errors
+            total_indexed += len(batch_paths)
+            logging.info(f"Final batch submitted total {total_indexed} images, final batch: {len(batch_paths)} images.")
+
+        # 等待所有任务完成
         cache_map.setdefault("total", total_indexed)
         current = 0
-        for future in futures:
-            current += future.result()
-            cache_map.setdefault("current", current)
-            logging.info(
-                f"Batch executed total {total_indexed} images,current {current} images.")
-        executor.shutdown(wait=True)
-        logging.info(f"Total submitted so far: {len(futures)},Total indexed: {total_indexed},")
+        for i, future in enumerate(futures):
+            try:
+                result = future.result()  # 这里会阻塞直到任务完成
+                current += result
+                cache_map.setdefault("current", current)
+                logging.info(f"Completed batch {i + 1}/{len(futures)}, total processed: {current} images.")
+            except Exception as e:
+                logging.error(f"Error processing future: {e}")
+
+        logging.info(f"Total submitted: {len(futures)} batches, Total indexed: {total_indexed} images.")
         return str(total_indexed)
     except Exception as e:
-        if 'executor' in locals():
-            executor.shutdown(wait=False)
         logging.error(f"Error in do_train: {e}")
         return str(e)
     finally:
-        if 'executor' in locals():
-            executor.shutdown(wait=False)
+        # 确保线程池被关闭
+        executor.shutdown(wait=True)
 
 
 def train_status_cache():

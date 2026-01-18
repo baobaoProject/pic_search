@@ -156,8 +156,8 @@ def do_text_search_api():
         return str(e), 500
 
 
-@app.before_first_request
-def before_first_request():
+@app.before_request
+def before_request():
     # 定义允许的前缀列表
     passed_prefixes = ['/api/v1/data']
 
