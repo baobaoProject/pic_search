@@ -71,7 +71,7 @@ def do_train(table_name, data_path: str, embedding_index_type):
                 # 当批次达到指定大小时提交任务
                 if len(batch_paths) >= config.BATCH_SIZE:
                     # 等待线程池有空闲容量
-                    while len([f for f in futures if not f.done()]) >= config.MAX_THREADS * 10:
+                    while len([f for f in futures if not f.done()]) >= config.MAX_THREADS * 2:
                         time.sleep(0.5)  # 短暂休眠，避免忙等待
 
                     # 提交当前批次的任务
