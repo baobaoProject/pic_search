@@ -1,5 +1,5 @@
-from .config import BATCH_SIZE, DEFAULT_DATABASE, DEFAULT_TABLE, INPUT_SHAPE_SIZE, MAX_THREADS, MILVUS_HOST, \
-    MILVUS_PORT, MODEL_LANGUAGE, MODEL_NAME, UPLOAD_PATH
+from .config import BATCH_SIZE, DEFAULT_DATABASE, DEFAULT_TABLE, DEVICE, INPUT_SHAPE_SIZE, MAX_THREADS, \
+    MILVUS_HOST, MILVUS_PORT, MODEL_LANGUAGE, MODEL_NAME, UPLOAD_PATH
 from .const import image_size, input_shape, model_info
 
 
@@ -18,6 +18,11 @@ def get_model_dimension(model_name=MODEL_NAME):
 def get_model_id(model_name=MODEL_NAME):
     """根据模型类型获取模型id"""
     return model_info[model_name]["model_id"] or ""
+
+
+# 获取设备类型
+def get_device():
+    return DEVICE or "cpu"
 
 
 # 获取图片尺寸

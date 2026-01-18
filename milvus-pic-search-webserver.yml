@@ -47,6 +47,7 @@ services:
       MINIO_ADDRESS: minio:9000
       MQ_TYPE: woodpecker
       QUOTA_AND_LIMITS_ENABLED: false  # 禁用配额与限速（修正键名）
+      STREAMING_NODE_ENABLE: false # 禁用流式节点
     volumes:
       - ./data/milvus:/var/lib/milvus
       - ./config/milvus/milvus.yaml:/milvus/configs/milvus.yaml:ro
@@ -96,12 +97,12 @@ services:
       - DATA_PATH=/data/images
       - MILVUS_HOST=${MILVUS_HOST:-standalone}
       - MILVUS_PORT=19530  # 添加端口配置
-      - MODEL_NAME=OFA-ChineseCLIP-Huge # 添加模型名称
+      # - MODEL_NAME=OFA-ChineseCLIP-Huge # 添加模型名称
       - DEFAULT_COLLECTION=pic_search # 添加默认集合名称
       - DEFAULT_DATABASE=pic_search # 添加默认数据库名称
       - INPUT_SHAPE_SIZE=224 # 修改输入形状大小
-      - MAX_THREADS=5  # 添加线程数配置
-      - BATCH_SIZE=10  # 添加图片批量预测大小配置
+      - MAX_THREADS=10  # 添加线程数配置
+      - BATCH_SIZE=50  # 添加图片批量预测大小配置
       - EMBEDDING_INDEX_TYPE=HNSW # 添加向量索引类型配置
       - N_LIST=128 # 创建索引时总的聚类中心个数
       - SEARCH_N_LIST=32 # 搜索时使用的聚类中心个数

@@ -1,11 +1,11 @@
 import logging
 import threading
 
-from pymilvus import MilvusClient, DataType  # type: ignore
+from pymilvus import DataType, MilvusClient
 
-from common.config import MILVUS_HOST, MILVUS_PORT, DEFAULT_TABLE, DEFAULT_DATABASE
-from common.const import vector_field_name, index_params_map
 import common
+from common.config import DEFAULT_DATABASE, DEFAULT_TABLE, MILVUS_HOST, MILVUS_PORT
+from common.const import index_params_map, vector_field_name
 
 # 创建一个线程锁
 client_lock = threading.Lock()
@@ -140,11 +140,7 @@ def insert_vectors(table_name, vectors, image_paths):
             })
 
         insert_result = client.insert(collection_name=table_name, data=data)
-
-        # 在某些配置下可能需要手动 flush，但 High Level API 通常处理好了，为了保险起见可以保留
-        # client.flush(table_name)  # MilvusClient 暂无 flush 方法，通常不需要手动调用
-
-        logging.info(f"Successfully inserted {len(vectors)} vectors to collection: {table_name}")
+        logging.debug(f"Successfully inserted {len(vectors)} vectors to collection: {table_name}")
         return insert_result["ids"]
     except Exception as e:
         logging.error(f"Error inserting vectors: {e}")

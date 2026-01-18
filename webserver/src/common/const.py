@@ -15,53 +15,60 @@ model_info = {
         "input_shape_size": 224,
     },
     "EfficientNetV2S": {
-        "type": "efficientnet",
+        "type": "EfficientNet",
         "vector_dimension": 1280,
         "input_shape_size": INPUT_SHAPE_SIZE,
         "model_id": "tensorflow/efficientnet-v2-s"
     },
     "OPENAI-CLIP": {
-        "type": "openai",
+        "type": "CLIPModel",
         "vector_dimension": 512,  # OpenAI CLIP ViT-B/32 的默认维度
         "input_shape_size": 224,  # CLIP 默认输入尺寸
         "model_id": "openai/clip-vit-base-patch32"
     },
     "OFA-ChineseCLIP": {
-        "type": "ofa-sys",
+        "type": "ChineseCLIPModel",
         "vector_dimension": 512,  # ChineseCLIP ViT-B/16 的默认维度
         "input_shape_size": 224,
         "model_id": "OFA-Sys/chinese-clip-vit-base-patch16"
     },
     "OFA-ChineseCLIP-Huge": {
-        "type": "ofa-sys",
+        "type": "ChineseCLIPModel",
         "vector_dimension": 1024,
         "input_shape_size": 224,
         "model_id": "OFA-Sys/chinese-clip-vit-huge-patch14"
     },
     "JinaCLIP": {
         "type": "jinaai",
-        "vector_dimension": 768,  # JinaCLIP 的默认维度，支持多国语言
+        "vector_dimension": 1024,  # JinaCLIP 的默认维度，支持多国语言
         "input_shape_size": 224,
         "model_id": "jinaai/jina-clip-v2"
     },
-    "GoogleSiglip": {
-        "type": "google",
-        "vector_dimension": 512,
+    "TencentARC-QA-CLIP": {
+        "type": "ChineseCLIPModel",
+        "vector_dimension": 768,
+        "input_shape_size": 224,
+        # TencentARC/QA-CLIP-ViT-B-16
+        "model_id": "TencentARC/QA-CLIP-ViT-L-14"
+    },
+    "GoogleSiglip2": {  # 不支持文本搜索
+        "type": "AutoModel",
+        "vector_dimension": 768,
         "input_shape_size": 224,
         "model_id": "google/siglip-base-patch16-224"
     },
     "Qihoo-CLIP2": {
-        "type": "qihoo360",
+        "type": "AutoModelForCausalLM",
         "vector_dimension": 1024,  # Qihoo 的默认维度,只支持中文
         "input_shape_size": INPUT_SHAPE_SIZE,
         "model_id": "qihoo360/fg-clip2-large"
     },
     "Qwen3-VL": {
-        "type": "qwen",
+        "type": "Qwen3VLForConditionalGeneration",
         "vector_dimension": 768,
         "input_shape_size": 224,
         "model_id": "Qwen/Qwen3-VL-2B-Instruct"
-    }
+    },
 }
 
 # 定义索引类型和对应的参数映射

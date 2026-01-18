@@ -156,8 +156,8 @@ def do_text_search_api():
         return str(e), 500
 
 
-@app.before_request
-def before_request():
+@app.before_first_request
+def before_first_request():
     # 定义允许的前缀列表
     passed_prefixes = ['/api/v1/data']
 
@@ -173,7 +173,6 @@ def before_request():
     # 在每个请求之前建立Milvus连接
     # Establish connection to Milvus
     milvus_client()
-    logging.info("Milvus client connection established.")
     import model
     logging.info("Model extractor  loading...")
     model.get_feature_extractor()

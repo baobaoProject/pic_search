@@ -60,7 +60,7 @@ def do_train(table_name, data_path: str, embedding_index_type):
                 if os.path.exists(new_img_path):
                     logging.info(f"Image {new_img_path} already exists,skipping.")
                     continue
-                shutil.copy(img_path, DATA_PATH_SUBDIR)
+                shutil.copy2(img_path, DATA_PATH_SUBDIR)
                 # 构建图片的绝对路径
                 image_paths.append(new_img_path)
 
@@ -88,6 +88,8 @@ def do_train(table_name, data_path: str, embedding_index_type):
         for future in futures:
             current += future.result()
             cache_map.setdefault("current", current)
+            logging.info(
+                f"Batch executed total {total_indexed} images,current {current} images.")
         executor.shutdown(wait=True)
         logging.info(f"Total submitted so far: {len(futures)},Total indexed: {total_indexed},")
         return str(total_indexed)
@@ -96,6 +98,9 @@ def do_train(table_name, data_path: str, embedding_index_type):
             executor.shutdown(wait=False)
         logging.error(f"Error in do_train: {e}")
         return str(e)
+    finally:
+        if 'executor' in locals():
+            executor.shutdown(wait=False)
 
 
 def train_status_cache():
@@ -115,7 +120,7 @@ def process_predict_and_insert(image_paths, table_name):
 
         # Batch insert
         index.insert_vectors(table_name or common.get_model_default_table(), features, image_paths)
-        logging.info(f"Batch insert_vectors {len(image_paths)} images.")
+        logging.info(f"Inserted {len(features)} vectors into Milvus.")
         return len(features)
     except Exception as e:
         logging.error(f"Error processing image : {e}")

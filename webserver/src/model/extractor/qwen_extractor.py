@@ -90,13 +90,6 @@ class QwenFeatureExtractor(AbstractFeatureExtractor):
         finally:
             image.close()
 
-    def batch_extract_image_features(self, image_paths):
-        features_list = []
-        for img_path in image_paths:
-            features = self.extract_image_features(img_path)
-            features_list.append(features)
-        return features_list
-
     def extract_text_features(self, text):
         # Qwen文本特征提取的具体实现
         inputs = self.processor(text=text, return_tensors="pt")
