@@ -74,7 +74,8 @@ def count_rows(table_name=DEFAULT_TABLE):
 # 内存优化: IVF_PQ > IVF_SQ8 > IVF_FLAT > IVF_FLAT > FLAT
 # 大数据集: DISKANN > HNSW > IVF_PQ
 # GPU可用: GPU_IVF_FLAT 或 GPU_IVF_PQ
-def create_table(table_name=common.get_model_default_table(), delete_if_exists=False, embedding_index_type="IVF_FLAT"):
+def create_table(table_name=common.get_model_default_table(), delete_if_exists=False, embedding_index_type="IVF_FLAT",
+                 dimension=common.get_model_dimension()):
     """
     Create a new collection with the specified name
     """
@@ -96,7 +97,6 @@ def create_table(table_name=common.get_model_default_table(), delete_if_exists=F
 
         # 字段可以启动mmap_enabled=true属性，以节约内存
         schema.add_field(field_name="id", datatype=DataType.INT64, is_primary=True)
-        dimension = common.get_model_dimension()
         schema.add_field(field_name=vector_field_name, datatype=DataType.FLOAT_VECTOR, dim=dimension)
         schema.add_field(field_name="image_path", datatype=DataType.VARCHAR, max_length=512)
 

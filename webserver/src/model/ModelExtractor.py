@@ -34,6 +34,12 @@ class Extractor:
         """Extract features for a single text."""
         raise NotImplementedError("extract_features method not implemented")
 
+    @abstractmethod
+    def get_vector_dimension(self):
+        """
+        """
+        raise NotImplementedError("get_vector_dimension method not implemented")
+
 
 # 定义一个get_feature_extractor的接口
 class AbstractFeatureExtractor(Extractor):
@@ -63,20 +69,22 @@ class AbstractFeatureExtractor(Extractor):
             self.device_map = "cpu"
         self.model_id = model_id
         self.language = language
-        self.dimension = dimension
         self.torch_dtype = torch_dtype
         # 图片尺寸,定义图像的尺寸
         self.input_shape_size = common.get_image_shape()
-        # 打印上面所有参数
-        logging.info(
-            f"params::: model_name: {self.model_name}, device:{self.device}, model_id:{self.model_id}, dimension:{self.dimension}, language:{self.language}, torch_dtype:{self.torch_dtype}")
-
         logging.info(f"Loading {model_name} feature extractor...")
         self.load_model()
+        # 优先从模型内部获取向量维度
+        self.dimension = self.get_vector_dimension() or dimension
         try:
             self.model = self.model.to(self.device)
         except Exception as e:
             logging.error(f"Error model to {self.device}: {e}")
+
+            # 打印上面所有参数
+        logging.info(
+            f"params::: model_name: {self.model_name}, device:{self.device}, model_id:{self.model_id}, dimension:{self.dimension}, language:{self.language}, torch_dtype:{self.torch_dtype}")
+
         logging.info(f"{model_name} feature extractor loaded successfully.")
 
         logging.info(f"Loading {model_name} feature extractor processor...")
@@ -100,7 +108,9 @@ class AbstractFeatureExtractor(Extractor):
     # 加载image_processor
     def load_image_processor(self):
         try:
-            self.processor = AutoImageProcessor.from_pretrained(self.model_id)
+            self.processor = AutoImageProcessor.from_pretrained(self.model_id, trust_remote_code=True,
+                                                                cache_dir=self.cache_dir,
+                                                                use_fast=True)
         except Exception as e:
             logging.error(f"Failed to load CLIP model: {e}")
             raise e
@@ -115,6 +125,63 @@ class AbstractFeatureExtractor(Extractor):
             logging.error(f"Failed to load CLIP model: {e}")
             raise e
         return self.tokenizer
+
+    def get_vector_dimension(self):
+        # 首先尝试从模型配置中获取向量维度
+        if self.model is not None:
+            try:
+                # 对于CLIP类模型，优先获取projection_dim作为输出向量维度
+                if hasattr(self.model.config, 'projection_dim'):
+                    # 顶层配置中的projection_dim，适用于CLIP等多模态模型
+                    return self.model.config.projection_dim
+
+                # 对于CLIP类模型，图像和文本编码器的输出都会投影到projection_dim维度
+                if hasattr(self.model.config, 'vision_config'):
+                    vision_config = self.model.config.vision_config
+                    # 优先获取projection_dim，它是最终的输出维度
+                    if hasattr(vision_config, 'projection_dim'):
+                        return vision_config.projection_dim
+                    elif hasattr(vision_config, 'hidden_size'):
+                        return vision_config.hidden_size
+
+                if hasattr(self.model.config, 'text_config'):
+                    # 检查是否有文本配置，并从中获取维度
+                    text_config = self.model.config.text_config
+                    # 优先获取projection_dim，它是最终的输出维度
+                    if hasattr(text_config, 'projection_dim'):
+                        return text_config.projection_dim
+                    elif hasattr(text_config, 'hidden_size'):
+                        return text_config.hidden_size
+
+                # 对于一般的transformer模型
+                if hasattr(self.model.config, 'hidden_size'):
+                    return self.model.config.hidden_size
+
+                # 对于某些特定模型架构
+                if hasattr(self.model, 'vision_model') and hasattr(self.model.vision_model, 'config'):
+                    vision_model_config = self.model.vision_model.config
+                    if hasattr(vision_model_config, 'projection_dim'):
+                        return vision_model_config.projection_dim
+                    elif hasattr(vision_model_config, 'hidden_size'):
+                        return vision_model_config.hidden_size
+
+                if hasattr(self.model, 'text_model') and hasattr(self.model.text_model, 'config'):
+                    # 检查文本模型配置
+                    text_model_config = self.model.text_model.config
+                    if hasattr(text_model_config, 'projection_dim'):
+                        return text_model_config.projection_dim
+                    elif hasattr(text_model_config, 'hidden_size'):
+                        return text_model_config.hidden_size
+
+                # 如果模型有embed_dim属性
+                if hasattr(self.model, 'embed_dim'):
+                    return self.model.embed_dim
+
+            except AttributeError:
+                pass
+
+        # 如果无法从模型配置中获取，则返回初始化时传入的dimension
+        return self.dimension
 
     def extract_image_features(self, img_path):
         """Extract features for a single image."""
@@ -234,6 +301,9 @@ class ProxyFeatureExtractor(Extractor):
     def extract_text_features(self, text):
         logging.info(f"Extracting features for text: {text}")
         return self.instance.extract_text_features(text)
+
+    def get_vector_dimension(self):
+        return self.instance.get_vector_dimension()
 
     @classmethod
     def get_instance(cls, model_name=common.get_model_name()) -> "AbstractFeatureExtractor":

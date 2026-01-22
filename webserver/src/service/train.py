@@ -31,9 +31,12 @@ def do_train(table_name, data_path: str, embedding_index_type):
         if index.has_collection(table_name) is False:
             # 创建表
             with predict_lock:
+                # 获取特征提取器实例（延迟初始化）
+                feature_extractor = get_feature_extractor()
                 index.create_table(table_name,
                                    False,
-                                   embedding_index_type or config.EMBEDDING_INDEX_TYPE)
+                                   embedding_index_type or config.EMBEDDING_INDEX_TYPE,
+                                   dimension=feature_extractor.get_vector_dimension())
 
         # data_path去空格
         data_path = os.path.normpath(data_path.strip())

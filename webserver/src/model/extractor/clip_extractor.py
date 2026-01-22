@@ -48,7 +48,7 @@ class ChineseClipFeatureExtractor(ClipFeatureExtractor):
     def load_model(self):
         try:
             logging.info(f"Loading ChineseCLIPModel on {self.device}...")
-            self.model = ChineseCLIPModel.from_pretrained(self.model_id, cache_dir=self.cache_dir, use_fast=True).to(
+            self.model = ChineseCLIPModel.from_pretrained(self.model_id, cache_dir=self.cache_dir).to(
                 self.device)
             logging.info("Chinese CLIP model loaded successfully.")
         except Exception as e:
