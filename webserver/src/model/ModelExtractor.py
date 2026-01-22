@@ -6,6 +6,7 @@ from typing import Optional, Union
 
 import torch
 from PIL import Image
+from transformers import AutoImageProcessor, AutoModel, AutoProcessor, AutoTokenizer
 
 import common
 
@@ -86,20 +87,34 @@ class AbstractFeatureExtractor(Extractor):
         self.load_tokenizer()
         logging.info(f"{model_name} feature extractor tokenizer loaded successfully.")
 
-    @abstractmethod
     def load_model(self):
-        """Load the feature extractor model."""
-        raise NotImplementedError("load_model method not implemented")
+        self.model = AutoModel.from_pretrained(self.model_id, device_map=self.device_map, trust_remote_code=True,
+                                               cache_dir=self.cache_dir)
+        return self.model
 
-    @abstractmethod
     def load_processor(self):
-        """Load the feature extractor processor."""
-        raise NotImplementedError("load_processor method not implemented")
+        self.processor = AutoProcessor.from_pretrained(self.model_id, trust_remote_code=True, cache_dir=self.cache_dir,
+                                                       use_fast=True)
+        return self.processor
 
-    @abstractmethod
+    # 加载image_processor
+    def load_image_processor(self):
+        try:
+            self.processor = AutoImageProcessor.from_pretrained(self.model_id)
+        except Exception as e:
+            logging.error(f"Failed to load CLIP model: {e}")
+            raise e
+        return self.processor
+
+    # 加载tokenizer
     def load_tokenizer(self):
-        """Load the feature extractor tokenizer."""
-        raise NotImplementedError("load_tokenizer method not implemented")
+        try:
+            self.tokenizer = AutoTokenizer.from_pretrained(self.model_id, trust_remote_code=True,
+                                                           cache_dir=self.cache_dir, use_fast=True)
+        except Exception as e:
+            logging.error(f"Failed to load CLIP model: {e}")
+            raise e
+        return self.tokenizer
 
     def extract_image_features(self, img_path):
         """Extract features for a single image."""
@@ -124,18 +139,25 @@ class AbstractFeatureExtractor(Extractor):
         finally:
             image.close()
 
-    def batch_extract_image_features(self, image_paths):
+    def batch_extract_image_features(self, image_paths: list[str]):
         """Extract features for a batch of images."""
         logging.debug(f"Extracting features for {len(image_paths)} images.")
-        features = []
-        for path in image_paths:
-            try:
-                features.append(self.extract_image_features(path))
-            except Exception as inner_e:
-                logging.error(f"Failed to process {path}: {inner_e}")
-                # 使用全0向量占位或跳过，这里选择抛出异常让上层处理
-                raise inner_e
-        return features
+        try:
+            # 预处理图片
+            inputs = self.processor(images=image_paths, return_tensors="pt").to(self.device)
+            # 推理
+            with torch.no_grad():
+                # 根据模型类型选择对应的方法
+                image_features = self.model.get_image_features(**inputs)
+            # 归一化 (CLIP 的特征通常需要归一化)
+            image_features = image_features / image_features.norm(p=2, dim=-1, keepdim=True)
+            # 转为列表
+            return image_features.cpu().numpy().tolist()
+        except Exception as e:
+            import traceback
+            logging.error(f"Error extracting image features: {e}")
+            logging.error(traceback.format_exc())
+            raise e
 
     def extract_text_features(self, text):
         """Extract features for text."""
@@ -176,8 +198,7 @@ class AbstractFeatureExtractor(Extractor):
     def extract_text_features_tokenizer(self, text):
         try:
             # 处理文本，添加最大长度限制
-            model_inputs = self.tokenizer([text], padding="max_length", truncation=True,
-                                          return_tensors="pt").to(self.device)
+            model_inputs = self.tokenizer([text], return_tensors="pt").to(self.device)
             # 推理
             with torch.no_grad():
                 text_features = self.model.get_text_features(**model_inputs)

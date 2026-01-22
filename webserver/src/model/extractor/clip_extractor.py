@@ -1,6 +1,6 @@
 import logging
 
-from transformers import AutoTokenizer, CLIPModel, CLIPProcessor, ChineseCLIPModel, ChineseCLIPProcessor
+from transformers import CLIPModel, CLIPProcessor, ChineseCLIPModel, ChineseCLIPProcessor
 
 import common
 from model.ModelExtractor import AbstractFeatureExtractor
@@ -36,15 +36,6 @@ class ClipFeatureExtractor(AbstractFeatureExtractor):
             raise e
         return self.processor
 
-    # 加载tokenizer
-    def load_tokenizer(self):
-        try:
-            self.tokenizer = AutoTokenizer.from_pretrained(self.model_id)
-        except Exception as e:
-            logging.error(f"Failed to load CLIP model: {e}")
-            raise e
-        return self.tokenizer
-
 
 # 中文CLIP 特征提取器
 class ChineseClipFeatureExtractor(ClipFeatureExtractor):
@@ -57,7 +48,8 @@ class ChineseClipFeatureExtractor(ClipFeatureExtractor):
     def load_model(self):
         try:
             logging.info(f"Loading ChineseCLIPModel on {self.device}...")
-            self.model = ChineseCLIPModel.from_pretrained(self.model_id, cache_dir=self.cache_dir).to(self.device)
+            self.model = ChineseCLIPModel.from_pretrained(self.model_id, cache_dir=self.cache_dir, use_fast=True).to(
+                self.device)
             logging.info("Chinese CLIP model loaded successfully.")
         except Exception as e:
             logging.error(f"Failed to load CLIP model: {e}")

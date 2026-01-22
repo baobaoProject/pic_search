@@ -1,5 +1,5 @@
 import torch
-from transformers import AutoImageProcessor, AutoTokenizer
+from transformers import AutoImageProcessor
 
 import common
 from model import AbstractFeatureExtractor
@@ -23,10 +23,6 @@ class JinaaiFeatureExtractor(AbstractFeatureExtractor):
         self.processor = AutoImageProcessor.from_pretrained(self.model_id, trust_remote_code=True,
                                                             cache_dir=self.cache_dir)
         return self.processor
-
-    def load_tokenizer(self):
-        self.tokenizer = AutoTokenizer.from_pretrained(self.model_id, trust_remote_code=True, cache_dir=self.cache_dir)
-        return self.tokenizer
 
     def extract_text_features(self, text):
         return super().extract_text_features_tokenizer(text)
