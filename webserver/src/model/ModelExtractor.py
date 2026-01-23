@@ -45,6 +45,7 @@ class Extractor:
 class AbstractFeatureExtractor(Extractor):
     """Abstract base class for feature extractors."""
     cache_dir = "/root/.keras/models/huggingface/hub"
+    cache_checkpoint_dir = "/root/.keras/models/checkpoints"
     model = None
     processor = None
     tokenizer = None
@@ -58,6 +59,7 @@ class AbstractFeatureExtractor(Extractor):
                  device: str = None,
                  torch_dtype=None):
         self.model_name = model_name
+        self.model_config: common.ModelConfig = common.get_model_config(model_name)
         # 设备不是cpu，自动计算
         if self.device != "cpu":
             self.device = "cuda"
@@ -76,14 +78,18 @@ class AbstractFeatureExtractor(Extractor):
         self.load_model()
         # 优先从模型内部获取向量维度
         self.dimension = self.get_vector_dimension() or dimension
+
+        # 打印上面所有参数
+        logging.info(
+            f"params::: model_name: {self.model_name}, device:{self.device}, model_id:{self.model_id}, dimension:{self.dimension}, language:{self.language}, torch_dtype:{self.torch_dtype}")
+
         try:
             self.model = self.model.to(self.device)
         except Exception as e:
             logging.error(f"Error model to {self.device}: {e}")
 
-            # 打印上面所有参数
-        logging.info(
-            f"params::: model_name: {self.model_name}, device:{self.device}, model_id:{self.model_id}, dimension:{self.dimension}, language:{self.language}, torch_dtype:{self.torch_dtype}")
+        # 加载checkpoints
+        self.load_model_checkpoints()
 
         logging.info(f"{model_name} feature extractor loaded successfully.")
 
@@ -94,6 +100,32 @@ class AbstractFeatureExtractor(Extractor):
         logging.info(f"Loading {model_name} feature extractor tokenizer...")
         self.load_tokenizer()
         logging.info(f"{model_name} feature extractor tokenizer loaded successfully.")
+
+    # 加载模型检查点
+    def load_model_checkpoints(self):
+        if self.model_config is None or self.model_config.model_checkpoints is None:
+            return
+        # 是数组，则遍历
+        for model_checkpoint in self.model_config.model_checkpoints:
+            checkpoint_path = os.path.join(self.cache_checkpoint_dir, model_checkpoint)
+            if os.path.exists(checkpoint_path):
+                logging.info(f"Loading {self.model_name} feature extractor checkpoints:{checkpoint_path}...")
+                try:
+                    # 由于PyTorch 2.6默认weights_only=True，而检查点文件包含不支持的对象，
+                    # 所以设置weights_only=False来加载模型检查点
+                    checkpoint = torch.load(checkpoint_path, map_location=self.device, weights_only=False)
+                    sd = checkpoint.get("state_dict", checkpoint)  # 支持直接是state_dict的检查点
+                    if next(iter(sd.items()))[0].startswith('module'):
+                        sd = {k[len('module.'):]: v for k, v in sd.items() if "bert.pooler" not in k}
+                    # 加载状态字典，允许部分匹配
+                    missing_keys, unexpected_keys = self.model.load_state_dict(sd, strict=False)
+                    if missing_keys:
+                        logging.warning(f"Missing keys when loading checkpoints: {missing_keys}")
+                    if unexpected_keys:
+                        logging.warning(f"Unexpected keys when loading checkpoints: {unexpected_keys}")
+                    logging.info(f"Successfully loaded checkpoints: {checkpoint_path}")
+                except Exception as e:
+                    logging.error(f"Failed to load checkpoints {checkpoint_path}: {e}")
 
     def load_model(self):
         self.model = AutoModel.from_pretrained(self.model_id, device_map=self.device_map, trust_remote_code=True,

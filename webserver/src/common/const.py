@@ -30,7 +30,8 @@ model_info = {
         "type": "ChineseCLIPModel",
         "vector_dimension": 512,  # ChineseCLIP ViT-B/16 的默认维度
         "input_shape_size": 224,
-        "model_id": "OFA-Sys/chinese-clip-vit-base-patch16"
+        "model_id": "OFA-Sys/chinese-clip-vit-base-patch16",
+        "checkpoints": ["chinese-clip-vit-base-patch16/epoch_latest.pt"]
     },
     "OFA-ChineseCLIP-Huge": {
         "type": "ChineseCLIPModel",

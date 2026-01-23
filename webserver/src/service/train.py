@@ -6,6 +6,8 @@ import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
 
+from PIL import Image
+
 import common
 from common import config
 from indexer import index
@@ -70,6 +72,7 @@ def do_train(table_name, data_path: str, embedding_index_type):
                 shutil.copy2(img_path, DATA_PATH_SUBDIR)
                 # 添加到当前批次
                 batch_paths.append(new_img_path)
+                image = Image.open(img_path).copy()
 
                 # 当批次达到指定大小时提交任务
                 if len(batch_paths) >= config.BATCH_SIZE:
