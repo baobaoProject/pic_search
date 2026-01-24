@@ -80,8 +80,7 @@ class AbstractFeatureExtractor(Extractor):
         self.dimension = self.get_vector_dimension() or dimension
 
         # 打印上面所有参数
-        logging.info(
-            f"params::: model_name: {self.model_name}, device:{self.device}, model_id:{self.model_id}, dimension:{self.dimension}, language:{self.language}, torch_dtype:{self.torch_dtype}")
+        logging.info(f"params::: model_name: {self.model_name}, device:{self.device}, model_id:{self.model_id}, dimension:{self.dimension}, language:{self.language}, torch_dtype:{self.torch_dtype}")
 
         try:
             self.model = self.model.to(self.device)
@@ -220,8 +219,7 @@ class AbstractFeatureExtractor(Extractor):
         image = Image.open(img_path)
         try:
             # 预处理图片
-            inputs = self.processor(images=image, max_num_patches=determine_max_value(image), return_tensors="pt").to(
-                self.device)
+            inputs = self.processor(images=image, max_num_patches=determine_max_value(image), return_tensors="pt").to(self.device)
             # 推理
             with torch.no_grad():
                 # 根据模型类型选择对应的方法

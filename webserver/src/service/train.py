@@ -6,8 +6,6 @@ import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
 
-from PIL import Image
-
 import common
 from common import config
 from indexer import index
@@ -61,33 +59,25 @@ def do_train(table_name, data_path: str, embedding_index_type):
                     # 跳过非图片文件
                     continue
 
-                # 复制图片
                 img_path = str(os.path.join(root, file))
-                # 构建图片的目标路径
-                new_img_path = os.path.join(DATA_PATH_SUBDIR, file)
-                # 判断文件是否存在
-                if os.path.exists(new_img_path):
-                    logging.info(f"Image {new_img_path} already exists, skipping.")
+                if not os.path.exists(img_path):
+                    logging.error(f"Image {img_path} does not exist.")
                     continue
-                shutil.copy2(img_path, DATA_PATH_SUBDIR)
                 # 添加到当前批次
-                batch_paths.append(new_img_path)
-                image = Image.open(img_path).copy()
-
+                batch_paths.append(img_path)
                 # 当批次达到指定大小时提交任务
                 if len(batch_paths) >= config.BATCH_SIZE:
                     # 等待线程池有空闲容量
                     while len([f for f in futures if not f.done()]) >= config.MAX_THREADS * 2:
-                        time.sleep(0.5)  # 短暂休眠，避免忙等待
+                        time.sleep(0.1)  # 短暂休眠，避免忙等待
 
                     # 提交当前批次的任务
-                    future = executor.submit(process_predict_and_insert, batch_paths.copy(), table_name)
+                    future = executor.submit(process_predict_and_insert, batch_paths.copy(), table_name, DATA_PATH_SUBDIR)
                     futures.append(future)
                     total_indexed += len(batch_paths)
                     cache_map.setdefault("total", total_indexed)
 
-                    logging.info(
-                        f"Batch submitted total {total_indexed} images, current batch: {len(batch_paths)} images.")
+                    logging.info(f"Batch submitted total {total_indexed} images, current batch: {len(batch_paths)} images.")
 
                     # 清空当前批次
                     batch_paths.clear()
@@ -98,7 +88,7 @@ def do_train(table_name, data_path: str, embedding_index_type):
             while len([f for f in futures if not f.done()]) >= config.MAX_THREADS:
                 time.sleep(0.5)
 
-            future = executor.submit(process_predict_and_insert, batch_paths, table_name)
+            future = executor.submit(process_predict_and_insert, batch_paths, table_name, DATA_PATH_SUBDIR)
             futures.append(future)
             total_indexed += len(batch_paths)
             logging.info(f"Final batch submitted total {total_indexed} images, final batch: {len(batch_paths)} images.")
@@ -130,20 +120,33 @@ def train_status_cache():
 
 
 # 提取特征并插入 Milvus
-def process_predict_and_insert(image_paths, table_name):
+def process_predict_and_insert(image_paths, table_name, data_path_sub):
     # 提取特征
+    batch_paths = []
     try:
+        # 遍历图片，把图片复制到DATA_PATH_SUBDIR目录下
+        for img_path in image_paths:
+            # 构建图片的目标路径
+            file = os.path.basename(img_path)
+            new_img_path = os.path.join(data_path_sub, file)
+            # 判断文件是否存在
+            if os.path.exists(new_img_path):
+                logging.info(f"Image {new_img_path} already exists, skipping.")
+                continue
+            shutil.copy2(img_path, data_path_sub)
+            batch_paths.append(new_img_path)
+
+        if len(batch_paths) == 0:
+            logging.info("No images to process.")
+            return 0
         # 获取特征提取器实例（延迟初始化）
-        feature_extractor = get_feature_extractor()
-
-        # 使用锁确保同一时刻只有一个线程在使用 GPU 进行预测
-        # with predict_lock:
-        features = feature_extractor.batch_extract_image_features(image_paths)
-
+        features = get_feature_extractor().batch_extract_image_features(batch_paths)
         # Batch insert
-        index.insert_vectors(table_name or common.get_model_default_table(), features, image_paths)
+        index.insert_vectors(table_name or common.get_model_default_table(), features, batch_paths)
         logging.info(f"Inserted {len(features)} vectors into Milvus.")
         return len(features)
     except Exception as e:
         logging.error(f"Error processing image : {e}")
         return 0
+    finally:
+        batch_paths.clear()
